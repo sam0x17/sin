@@ -1,0 +1,9 @@
+[package]
+name = "sin"
+version = "0.1.0"
+edition = "2021"
+authors = ["sam0x17"]
+description = "placeholder"
+license = "MIT"
+
+[dependencies]
