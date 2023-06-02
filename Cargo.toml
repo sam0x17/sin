@@ -1,6 +1,6 @@
 [package]
 name = "sin"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 authors = ["sam0x17"]
 description = "Sin aims to be an alternative to the proc-macro2/syn ecosystem geared towards developer UX and custom syntax parsing."
