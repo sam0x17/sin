@@ -5,6 +5,8 @@ edition = "2021"
 authors = ["sam0x17"]
 description = "Sin aims to be an alternative to the proc-macro2/syn ecosystem geared towards developer UX and custom syntax parsing."
 keywords = ["syn", "quote", "proc-macro", "parsing"]
+repository = "https://github.com/sam0x17/sin"
+homepage = "https://sam0x17.dev"
 license = "MIT"
 
 [dependencies]
