@@ -39,7 +39,7 @@ pub fn tt(tokens: TokenStream) -> TokenStream {
         }
         TokenTree::Ident(ident) => {
             let ident = ident.to_string();
-            quote!(sin::Token::Ident(#ident).into()).into()
+            quote!(sin::Token::Ident(#ident.to_string()).into()).into()
         }
         TokenTree::Punct(punct) => {
             let st = punct.to_string();
