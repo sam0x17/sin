@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use quote::quote;
 use sin::parsing::*;
 

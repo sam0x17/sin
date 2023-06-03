@@ -1,0 +1,12 @@
+[package]
+name = "sin_macros"
+version = "0.0.2"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2"
+quote = "1"
+proc-macro2 = "1"

@@ -1,4 +1,5 @@
 [workspace]
+members = ["sin_macros"]
 
 [package]
 name = "sin"
@@ -12,6 +13,7 @@ homepage = "https://sam0x17.dev"
 license = "MIT"
 
 [dependencies]
+sin_macros = { path = "sin_macros", version = "0.0.2" }
 proc-macro2 = "1"
 
 [dev-dependencies]
