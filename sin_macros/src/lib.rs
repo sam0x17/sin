@@ -1,6 +1,8 @@
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 use proc_macro2::Span;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use sin_types::*;
 use syn::Error;
 
 #[proc_macro]
@@ -39,7 +41,12 @@ pub fn tt(tokens: TokenStream) -> TokenStream {
             let ident = ident.to_string();
             quote!(sin::Token::Ident(#ident).into()).into()
         }
-        TokenTree::Punct(punct) => todo!(),
-        TokenTree::Literal(_) => todo!(),
+        TokenTree::Punct(punct) => {
+            let st = punct.to_string();
+            let punct: Punct = st.as_str().into();
+            let dbg: TokenStream2 = format!("{:?}", punct).parse().unwrap();
+            quote!(sin::Token::Punct(sin::Punct::#dbg)).into()
+        }
+        TokenTree::Literal(lit) => lit.to_string().parse().unwrap(),
     }
 }

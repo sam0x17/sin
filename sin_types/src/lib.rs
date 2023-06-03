@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Clone, PartialEq, Hash, Debug)]
 pub enum Token {
     Ident(String),
     Literal(String),
@@ -6,7 +6,7 @@ pub enum Token {
     Punct(Punct),
 }
 
-#[derive(Clone, Copy, PartialEq, Hash)]
+#[derive(Clone, Copy, PartialEq, Hash, Debug)]
 pub enum GroupPunct {
     Brace,
     Bracket,
@@ -37,7 +37,7 @@ impl GroupPunct {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Hash)]
+#[derive(Clone, Copy, PartialEq, Hash, Debug)]
 pub enum Punct {
     Plus,
     Minus,
