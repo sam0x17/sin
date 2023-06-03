@@ -28,5 +28,5 @@ pub use proc_macro2::TokenTree;
 pub mod parsing;
 pub use parsing::*;
 
-pub mod tokens;
-pub use tokens::*;
+pub use sin_types as types;
+pub use sin_types::*;

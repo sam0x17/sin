@@ -27,6 +27,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sin_macros",
+ "sin_types",
  "syn",
 ]
 
@@ -38,6 +39,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "sin_types"
+version = "0.0.2"
 
 [[package]]
 name = "syn"
