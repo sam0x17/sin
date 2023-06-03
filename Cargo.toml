@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "sin"
 version = "0.0.2"
@@ -10,3 +12,8 @@ homepage = "https://sam0x17.dev"
 license = "MIT"
 
 [dependencies]
+proc-macro2 = "1"
+
+[dev-dependencies]
+quote = "1"
+syn = "2"
