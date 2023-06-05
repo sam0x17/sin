@@ -29,9 +29,15 @@ pub fn tt(tokens: TokenStream) -> TokenStream {
                 return compile_error("No contents may be provided for `{}`, `[]`, or `()`.");
             } else {
                 match group.delimiter() {
-                    Delimiter::Parenthesis => simple_quote("sin::Token::GroupPunct::Paren"),
-                    Delimiter::Brace => simple_quote("sin::Token::GroupPunct::Brace"),
-                    Delimiter::Bracket => simple_quote("sin::Token::GroupPunct::Bracket"),
+                    Delimiter::Parenthesis => {
+                        simple_quote("sin::Token::GroupPunct(sin::GroupPunct::Paren)")
+                    }
+                    Delimiter::Brace => {
+                        simple_quote("sin::Token::GroupPunct(sin::GroupPunct::Brace)")
+                    }
+                    Delimiter::Bracket => {
+                        simple_quote("sin::Token::GroupPunct(sin::GroupPunct::Bracket)")
+                    }
                     Delimiter::None => unimplemented!(),
                 }
             }
