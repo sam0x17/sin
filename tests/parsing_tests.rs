@@ -3,7 +3,7 @@ use sin::parsing::*;
 
 #[test]
 fn test_parser_basic() {
-    let mut parser = Parser::<Stateless>::from(quote! {
+    let parser = Parser::from(quote! {
         struct MyStruct {
             field1: u32,
             field2: usize,
