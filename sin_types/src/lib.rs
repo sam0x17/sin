@@ -360,7 +360,7 @@ macro_rules! tt {
     (~)              => { $crate::Token::Punct($crate::Punct::Tilde) };
     (_)              => { $crate::Token::Punct($crate::Punct::Underscore) };
     ($ident:ident)   => { $crate::Token::CustomKeyword(stringify!($ident)) };
-    (#ident)         => { $crate::Token::Ident("ident") };
+    (#$ident:ident)  => { $crate::Token::Ident(stringify!($ident)) };
     (())             => { $crate::Token::GroupPunct($crate::GroupPunct::Paren) };
     ({})             => { $crate::Token::GroupPunct($crate::GroupPunct::Brace) };
     ([])             => { $crate::Token::GroupPunct($crate::GroupPunct::Bracket) };

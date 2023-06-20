@@ -131,7 +131,9 @@ fn test_tt_keywords() {
 
 #[test]
 fn test_tt_ident() {
-    assert!(matches!(tt![#ident], Token::Ident(_)));
+    assert!(matches!(tt![#ident], Token::Ident("ident")));
+    assert!(matches!(tt![#some_thing], Token::Ident("some_thing")));
+    assert!(matches!(tt![#SomeThing], Token::Ident("SomeThing")));
     assert!(!matches!(tt![struct], Token::Ident(_)));
     assert!(!matches!(tt![something], Token::Ident(_)));
 }
