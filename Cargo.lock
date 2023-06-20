@@ -41,6 +41,9 @@ dependencies = [
 [[package]]
 name = "sin_types"
 version = "0.0.2"
+dependencies = [
+ "proc-macro2",
+]
 
 [[package]]
 name = "syn"

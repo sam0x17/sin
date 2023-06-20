@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token<'a> {
     Ident(&'a str),
     Literal(&'a str),
@@ -8,7 +8,7 @@ pub enum Token<'a> {
     CustomKeyword(&'a str),
 }
 
-#[derive(Clone, Copy, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Keyword {
     Abstract,
     As,
@@ -64,7 +64,7 @@ pub enum Keyword {
     Yield,
 }
 
-#[derive(Clone, Copy, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum GroupPunct {
     Brace,
     Bracket,
@@ -95,7 +95,7 @@ impl GroupPunct {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Punct {
     Plus,
     Minus,
