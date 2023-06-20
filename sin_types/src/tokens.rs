@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::{format, string::String};
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token<'a> {
     Ident(&'a str),
