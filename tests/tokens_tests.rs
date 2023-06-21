@@ -1,4 +1,5 @@
 use sin::*;
+use sin_macros::test_backend;
 
 #[test]
 fn test_enclose() {
@@ -136,4 +137,9 @@ fn test_tt_ident() {
     assert!(matches!(tt![#SomeThing], Token::Ident("SomeThing")));
     assert!(!matches!(tt![struct], Token::Ident(_)));
     assert!(!matches!(tt![something], Token::Ident(_)));
+}
+
+#[test]
+fn backend() {
+    test_backend!(theasdfasdfse are tokens);
 }

@@ -1,5 +1,5 @@
-// use proc_macro::{Delimiter, TokenStream, TokenTree};
-// use sin_types::*;
+use proc_macro::TokenStream;
+use sin_types::*;
 
 // fn escape_quote<S: AsRef<str>>(text: S) -> String {
 //     text.as_ref().replace("\"", "\\\"")
@@ -14,8 +14,15 @@
 //     code.as_ref().parse().unwrap()
 // }
 
-// #[proc_macro]
-// pub fn test_backend(tokens: TokenStream) -> TokenStream {
-//     let span = tokens.into_iter().next().unwrap().span();
-//     TokenStream::new()
-// }
+#[proc_macro]
+pub fn test_backend(tokens: TokenStream) -> TokenStream {
+    let mut iter = tokens.into_iter();
+    let span = iter.next().unwrap().span();
+    println!("{:#?}", span);
+    println!("{:?}", span.raw_bytes());
+    let span = iter.next().unwrap().span();
+    println!("{:?}", span.raw_bytes());
+    let span = iter.next().unwrap().span();
+    println!("{:?}", span.raw_bytes());
+    TokenStream::new()
+}

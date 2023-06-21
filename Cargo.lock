@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -41,6 +47,25 @@ dependencies = [
 [[package]]
 name = "sin_types"
 version = "0.0.2"
+dependencies = [
+ "symbol",
+]
+
+[[package]]
+name = "spin"
+version = "0.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ceac490aa12c567115b40b7b7fceca03a6c9d53d5defea066123debc83c5dc1f"
+
+[[package]]
+name = "symbol"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79699c3ae2258766b51a8a11079a355f003e4a0a5cadbdbb66d5c3d8632d4423"
+dependencies = [
+ "lazy_static",
+ "spin",
+]
 
 [[package]]
 name = "syn"
