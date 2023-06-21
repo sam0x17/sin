@@ -15,8 +15,8 @@ license = "MIT"
 [dependencies]
 sin_macros = { path = "sin_macros", version = "0.0.2" }
 sin_types = { path = "sin_types", version = "0.0.2" }
-proc-macro2 = "1"
 
 [dev-dependencies]
+proc-macro2 = "1"
 quote = "1"
 syn = "2"

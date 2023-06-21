@@ -141,5 +141,5 @@ fn test_tt_ident() {
 
 #[test]
 fn backend() {
-    test_backend!(theasdfasdfse are tokens);
+    test_backend!("hey this is a token" are tokens);
 }

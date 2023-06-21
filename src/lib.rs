@@ -22,9 +22,6 @@
 //! Sin is a work in progress. The first usable version will be 0.1.0.
 //!
 
-pub use proc_macro2::TokenStream as TokenStream2;
-pub use proc_macro2::TokenTree;
-
 pub mod parsing;
 pub use parsing::*;
 

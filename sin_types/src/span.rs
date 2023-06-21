@@ -1,41 +1,9 @@
 extern crate alloc;
 extern crate proc_macro;
-use core::fmt::{self, Debug, Write};
 
+use core::fmt::Debug;
 use proc_macro::Span as Span1;
 use symbol::Symbol;
-
-struct StrBuffer<const N: usize> {
-    buff: [u8; N],
-    len: usize,
-}
-
-impl<const N: usize> Write for StrBuffer<N> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        if s.len() + self.len > self.buff.len() {
-            return Err(fmt::Error);
-        }
-        let bytes = s.as_bytes();
-        self.buff[self.len..self.len + s.len()].copy_from_slice(bytes);
-        self.len += s.len();
-        Ok(())
-    }
-
-    fn write_char(&mut self, c: char) -> fmt::Result {
-        if self.len >= self.buff.len() {
-            return Err(fmt::Error);
-        }
-        self.buff[self.len] = c as u8;
-        self.len += 1;
-        Ok(())
-    }
-}
-
-impl<const N: usize> StrBuffer<N> {
-    pub fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.buff[0..self.len]).unwrap()
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Span {
@@ -78,25 +46,50 @@ impl From<Span2> for Span {
     }
 }
 
-// pub trait SpanHack: Sized {
-//     fn raw_bytes(&self) -> &[u8] {
-//         let pointer: *const Self = self;
-//         let pointer: *const u8 = pointer as *const u8;
-//         unsafe { alloc::slice::from_raw_parts(pointer, core::mem::size_of::<Self>()) }
-//     }
-// }
-
-pub trait SpanHack: Debug {
-    fn debug_str(&self, buff: &mut StrBuffer<64>) {
-        write!(buff, "{:#?}", self).unwrap();
+impl From<Span> for Span1 {
+    fn from(value: Span) -> Self {
+        match value {
+            Span::Sin(Span2::MixedSite) => Span1::mixed_site(),
+            Span::ProcMacro(span) => span,
+            _ => Span1::call_site(),
+        }
     }
 }
 
-impl SpanHack for Span1 {}
-
 impl Span {
-    // /// The span of the invocation of the current procedural macro. Identifiers with this span
-    // /// will be resolved as if they were written directly at the macro call location (call-site
-    // /// hygiene) and other code at the macro call site will be able to refer to them as well.
-    // pub fn call_site() -> Span {}
+    /// The span of the invocation of the current procedural macro. Identifiers created with
+    /// this span will be resolved as if they were written directly at the macro call location
+    /// (call-site hygiene) and other code at the macro call site will be able to refer to them
+    /// as well.
+    pub fn call_site() -> Span {
+        Span::Sin(Span2::CallSite)
+    }
+
+    ///A span that represents macro_rules hygiene, and sometimes resolves at the macro
+    ///definition site (local variables, labels, $crate) and sometimes at the macro call site
+    ///(everything else). The span location is taken from the call-site.
+    pub fn mixed_site() -> Span {
+        Span::Sin(Span2::MixedSite)
+    }
+
+    /// Returns the source text behind a span. This preserves the original source code,
+    /// including spaces and comments.
+    ///
+    /// [`None`] is returned if the backing is a [`proc_macro::Span`] and the span itself does
+    /// not refer to real source code or if the underlying, or if this is a [`mixed_site`](`Span::mixed_site`) or
+    /// [`call_site`](`Span::call_site`) span.
+    pub fn source_text(&self) -> Option<Symbol> {
+        match self {
+            Span::Sin(Span2::Local {
+                start,
+                len,
+                source_text,
+            }) => Some(source_text[*start..(start + len)].into()),
+            Span::Sin(Span2::MixedSite | Span2::CallSite) => None,
+            Span::ProcMacro(span) => match span.source_text() {
+                Some(source_text) => Some(source_text.into()),
+                None => None,
+            },
+        }
+    }
 }
