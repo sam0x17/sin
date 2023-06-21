@@ -100,4 +100,19 @@ impl Span {
             },
         }
     }
+
+    /// Creates a new [`Span`] from the specified source [`str`],
+    /// [`String`](`alloc::string::String`), or [`Symbol`] (or anything that implements
+    /// [`Into<Symbol>`]). Calling this with an already allocated [`Symbol`] is a zero-cost
+    /// operation.
+    pub fn from_source<S: Into<Symbol>>(source: S) -> Span {
+        let source = source.into();
+        Span {
+            span: Span2::Local {
+                start: 0,
+                len: source.len(),
+                source_text: source,
+            },
+        }
+    }
 }
