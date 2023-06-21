@@ -71,9 +71,9 @@ impl Span {
         }
     }
 
-    /// A span that represents macro_rules hygiene, and sometimes resolves at the macro
-    /// definition site (local variables, labels, $crate) and sometimes at the macro call site
-    /// (everything else). The span location is taken from the call-site.
+    /// A span that represents `macro_rules` hygiene, and sometimes resolves at the macro
+    /// definition site (local variables, labels, `$crate`) and sometimes at the macro call
+    /// site (everything else). The span location is taken from the call-site.
     pub fn mixed_site() -> Span {
         Span {
             span: Span2::MixedSite,
