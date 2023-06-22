@@ -1,5 +1,4 @@
 use sin::*;
-use sin_macros::test_backend;
 
 #[test]
 fn test_enclose() {
@@ -68,9 +67,9 @@ fn test_tt_punct() {
 
 #[test]
 fn test_tt_custom_keywords() {
-    use Token::CustomKeyword;
-    assert!(matches!(tt![something], CustomKeyword("something")));
-    assert!(matches!(tt![AnotherThing], CustomKeyword("AnotherThing")));
+    assert_matches_sym!(tt![something], Token::CustomKeyword("something"));
+    assert_matches_sym!(tt![AnotherThing], Token::CustomKeyword("AnotherThing"));
+    assert_matches_sym!(tt![more_things], Token::CustomKeyword("more_things"));
 }
 
 #[test]
@@ -132,14 +131,17 @@ fn test_tt_keywords() {
 
 #[test]
 fn test_tt_ident() {
-    assert!(matches!(tt![#ident], Token::Ident("ident")));
-    assert!(matches!(tt![#some_thing], Token::Ident("some_thing")));
-    assert!(matches!(tt![#SomeThing], Token::Ident("SomeThing")));
+    assert_matches_sym!(tt![#ident], Token::Ident("ident"));
+    assert_matches_sym!(tt![#some_thing], Token::Ident("some_thing"));
+    assert_matches_sym!(tt![#SomeThing], Token::Ident("SomeThing"));
     assert!(!matches!(tt![struct], Token::Ident(_)));
     assert!(!matches!(tt![something], Token::Ident(_)));
 }
 
-#[test]
-fn backend() {
-    test_backend!("hey this is a token" are tokens);
-}
+// #[test]
+// fn test_tt_literals() {
+//     assert!(matches!(
+//         tt!["string literal"],
+//         Token::Literal("string literal")
+//     ));
+// }

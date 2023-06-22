@@ -1,16 +1,19 @@
 extern crate alloc;
 
+use crate::Symbol;
 use alloc::{format, string::String};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Token<'a> {
-    Ident(&'a str),
-    Literal(&'a str),
+pub enum Token {
+    Ident(Symbol),
+    Literal(Symbol),
     GroupPunct(GroupPunct),
     Punct(Punct),
     Keyword(Keyword),
-    CustomKeyword(&'a str),
+    CustomKeyword(Symbol),
 }
+
+pub enum Literal {}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Keyword {
@@ -363,9 +366,17 @@ macro_rules! tt {
     (*=)             => { $crate::Token::Punct($crate::Punct::StarEq) };
     (~)              => { $crate::Token::Punct($crate::Punct::Tilde) };
     (_)              => { $crate::Token::Punct($crate::Punct::Underscore) };
-    ($ident:ident)   => { $crate::Token::CustomKeyword(stringify!($ident)) };
-    (#$ident:ident)  => { $crate::Token::Ident(stringify!($ident)) };
+    ($ident:ident)   => { $crate::Token::CustomKeyword($crate::Symbol::from(stringify!($ident))) };
+    (#$ident:ident)  => { $crate::Token::Ident($crate::Symbol::from(stringify!($ident))) };
     (())             => { $crate::Token::GroupPunct($crate::GroupPunct::Paren) };
     ({})             => { $crate::Token::GroupPunct($crate::GroupPunct::Brace) };
     ([])             => { $crate::Token::GroupPunct($crate::GroupPunct::Bracket) };
+}
+
+#[macro_export]
+macro_rules! assert_matches_sym {
+    ($expr:expr, Token::$variant:ident($sym:literal)) => {{
+        assert!(matches!($expr, $crate::Token::$variant(_)));
+        assert_eq!($expr, $crate::Token::$variant(Symbol::from($sym)));
+    }};
 }

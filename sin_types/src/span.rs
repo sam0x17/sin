@@ -1,9 +1,9 @@
 extern crate alloc;
 extern crate proc_macro;
 
+use crate::Symbol;
 use core::fmt::Debug;
 use proc_macro::Span as Span1;
-use symbol::Symbol;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Span {
