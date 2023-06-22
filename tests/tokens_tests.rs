@@ -140,8 +140,12 @@ fn test_tt_ident() {
 
 // #[test]
 // fn test_tt_literals() {
+//     assert_matches_sym!(
+//         tt!["string literal"],
+//         Token::Literal(Literal::String("ident"))
+//     );
 //     assert!(matches!(
 //         tt!["string literal"],
-//         Token::Literal("string literal")
+//         Token::Literal(Literal::String())
 //     ));
 // }

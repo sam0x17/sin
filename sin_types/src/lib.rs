@@ -1,5 +1,7 @@
 #![no_std]
 
+mod literal;
+pub use literal::*;
 mod token;
 pub use token::*;
 mod span;
