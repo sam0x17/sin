@@ -1,19 +1,98 @@
 extern crate alloc;
 
-use crate::Symbol;
+use crate::{Span, Symbol};
+
 use alloc::{format, string::String};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token {
     Ident(Symbol),
-    Literal(Symbol),
+    Literal(Literal),
     GroupPunct(GroupPunct),
     Punct(Punct),
     Keyword(Keyword),
     CustomKeyword(Symbol),
 }
 
-pub enum Literal {}
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum IntBase {
+    Binary,
+    Octal,
+    Decimal,
+    Hexadecimal,
+}
+
+impl IntBase {
+    pub const fn prefix(&self) -> &'static str {
+        match self {
+            IntBase::Binary => "0b",
+            IntBase::Octal => "0o",
+            IntBase::Decimal => "",
+            IntBase::Hexadecimal => "0x",
+        }
+    }
+
+    pub const fn value(&self) -> u8 {
+        match self {
+            IntBase::Binary => 2,
+            IntBase::Octal => 8,
+            IntBase::Decimal => 10,
+            IntBase::Hexadecimal => 16,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum IntType {
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Usize,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+    Isize,
+}
+
+impl IntType {
+    pub const fn suffix(&self) -> &'static str {
+        match self {
+            IntType::U8 => "u8",
+            IntType::U16 => "u16",
+            IntType::U32 => "u32",
+            IntType::U64 => "u64",
+            IntType::U128 => "u128",
+            IntType::Usize => "usize",
+            IntType::I8 => "i8",
+            IntType::I16 => "i16",
+            IntType::I32 => "i32",
+            IntType::I64 => "i64",
+            IntType::I128 => "i128",
+            IntType::Isize => "isize",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct IntLit {
+    pub base: IntBase,
+    pub main: Symbol,
+    pub suffix: IntType,
+    pub span: Span,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Literal {
+    Bool(bool),
+    Char(char),
+    Integer(IntLit),
+    Float(Symbol),
+    String(Symbol),
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Keyword {
@@ -366,6 +445,9 @@ macro_rules! tt {
     (*=)             => { $crate::Token::Punct($crate::Punct::StarEq) };
     (~)              => { $crate::Token::Punct($crate::Punct::Tilde) };
     (_)              => { $crate::Token::Punct($crate::Punct::Underscore) };
+    ($lit:literal)   => { $crate::Literal::parse($lit).unwrap() };
+    (true)           => { $crate::Literal::BoolLit::True };
+    (false)          => { $crate::Literal::BoolLit::False };
     ($ident:ident)   => { $crate::Token::CustomKeyword($crate::Symbol::from(stringify!($ident))) };
     (#$ident:ident)  => { $crate::Token::Ident($crate::Symbol::from(stringify!($ident))) };
     (())             => { $crate::Token::GroupPunct($crate::GroupPunct::Paren) };
