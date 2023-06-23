@@ -366,7 +366,7 @@ macro_rules! tt {
     (*=)             => { $crate::Token::Punct($crate::Punct::StarEq) };
     (~)              => { $crate::Token::Punct($crate::Punct::Tilde) };
     (_)              => { $crate::Token::Punct($crate::Punct::Underscore) };
-    ($lit:literal)   => { $crate::Literal::parse($lit).unwrap() };
+    ($lit:literal)   => { $crate::Token::Literal($crate::Literal::parse(stringify!($lit)).unwrap()) };
     (true)           => { $crate::Literal::BoolLit::True };
     (false)          => { $crate::Literal::BoolLit::False };
     ($ident:ident)   => { $crate::Token::CustomKeyword($crate::Symbol::from(stringify!($ident))) };
@@ -381,19 +381,5 @@ macro_rules! assert_matches_sym {
     ($expr:expr, Token::$variant:ident($sym:literal)) => {
         assert!(matches!($expr, $crate::Token::$variant(_)));
         assert_eq!($expr, $crate::Token::$variant(Symbol::from($sym)));
-    };
-}
-
-#[macro_export]
-macro_rules! assert_matches_literal {
-    ($expr:expr, Token::Literal(Literal::$variant:ident(sym:literal))) => {
-        assert!(matches!(
-            $expr,
-            $crate::Token::Literal($crate::Token::Literal($crate::Literal::$variant(_)))
-        ));
-        assert_eq!(
-            $expr,
-            $crate::Token::Literal($crate::Literal::$variant::parse(Symbol::from($sym)))
-        );
     };
 }
