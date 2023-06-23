@@ -6,10 +6,10 @@ use ahash::AHasher;
 use alloc::boxed::Box;
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
-use spin::Mutex;
+use parking_lot::RwLock;
 
-const INTERNED_BYTES: Lazy<Mutex<HashMap<u64, Box<[u8]>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static INTERNED_BYTES: Lazy<RwLock<HashMap<u64, &'static [u8]>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct InternedBytes {
@@ -18,9 +18,7 @@ pub struct InternedBytes {
 
 impl InternedBytes {
     pub fn num_interned() -> usize {
-        let binding = INTERNED_BYTES;
-        let len = binding.lock().len();
-        len
+        INTERNED_BYTES.read().len()
     }
 }
 
@@ -36,13 +34,26 @@ impl From<&[u8]> for InternedBytes {
         value.hash(&mut hasher);
         let hash = hasher.finish();
 
-        let binding = INTERNED_BYTES;
-        let mut data = binding.lock();
-        let entry = data.entry(hash).or_insert(Box::from(value));
-        let ptr = entry.as_ptr();
-        let len = entry.len();
-        let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-        InternedBytes { slice }
+        // read section
+        let data = INTERNED_BYTES.read();
+        if let Some(slice) = data.get(&hash) {
+            return InternedBytes { slice: *slice };
+        }
+        drop(data);
+
+        // write section (if applicable)
+        let mut data = INTERNED_BYTES.write();
+
+        // just in case some other writer has come in since our read lock expired
+        if let Some(slice) = data.get(&hash) {
+            return InternedBytes { slice };
+        }
+
+        // intern new bytes in the hash map
+        let ptr = Box::leak(Box::from(value));
+        let slice = ptr as &'static [u8];
+        data.insert(hash, slice);
+        return InternedBytes { slice };
     }
 }
 
