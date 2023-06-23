@@ -24,9 +24,6 @@ impl InternedBytes {
     }
 }
 
-unsafe impl Send for InternedBytes {}
-unsafe impl Sync for InternedBytes {}
-
 impl<const N: usize> From<&[u8; N]> for InternedBytes {
     fn from(value: &[u8; N]) -> Self {
         InternedBytes::from(value as &[u8])
@@ -74,4 +71,11 @@ fn test_interned_bytes() {
     assert_eq!(InternedBytes::num_interned(), initial + 5);
     assert_eq!(var1.as_ref().as_ptr(), var4.as_ref().as_ptr());
     assert_ne!(var2.as_ref().as_ptr(), var3.as_ref().as_ptr());
+}
+
+#[test]
+fn test_interned_bytes_traits() {
+    use crate::util::*;
+    assert_send::<InternedBytes>();
+    assert_sync::<InternedBytes>();
 }

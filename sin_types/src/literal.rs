@@ -2,6 +2,7 @@ extern crate alloc;
 
 use crate::{InternedBytes, Symbol};
 use core::{
+    fmt::Display,
     hash::{Hash, Hasher},
     ops::Deref,
 };
@@ -22,6 +23,12 @@ impl ParseLiteral for IntLit {
         let raw = Symbol::from(input.as_ref());
         let lit = litrs::IntegerLit::parse(raw.as_str())?;
         Ok(IntLit { raw, lit })
+    }
+}
+
+impl Display for IntLit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.raw.as_str())
     }
 }
 
@@ -65,6 +72,12 @@ impl ParseLiteral for FloatLit {
     }
 }
 
+impl Display for FloatLit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.raw.as_str())
+    }
+}
+
 impl PartialOrd for FloatLit {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         self.raw.partial_cmp(&other.raw)
@@ -105,6 +118,12 @@ impl ParseLiteral for ByteLit {
     }
 }
 
+impl Display for ByteLit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.raw.as_str())
+    }
+}
+
 impl PartialOrd for ByteLit {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         self.raw.partial_cmp(&other.raw)
@@ -131,9 +150,31 @@ impl Deref for ByteLit {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ByteStringLit {
     pub raw: Symbol,
     pub value: InternedBytes,
+    pub is_raw_byte_string: bool,
+}
+
+impl ParseLiteral for ByteStringLit {
+    fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
+        let raw = Symbol::from(input.as_ref());
+        let lit = litrs::ByteStringLit::parse(raw.as_str())?;
+        let is_raw_byte_string = lit.is_raw_byte_string();
+        let value = InternedBytes::from(lit.value());
+        Ok(ByteStringLit {
+            raw,
+            value,
+            is_raw_byte_string,
+        })
+    }
+}
+
+impl Display for ByteStringLit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.raw.as_str())
+    }
 }
 
 impl ParseLiteral for char {
@@ -168,7 +209,21 @@ pub enum Literal {
     Float(FloatLit),
     String(Symbol),
     Byte(ByteLit),
-    ByteString(InternedBytes),
+    ByteString(ByteStringLit),
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Literal::Bool(lit) => lit.fmt(f),
+            Literal::Char(lit) => lit.fmt(f),
+            Literal::Integer(lit) => lit.fmt(f),
+            Literal::Float(lit) => lit.fmt(f),
+            Literal::String(lit) => lit.fmt(f),
+            Literal::Byte(lit) => lit.fmt(f),
+            Literal::ByteString(lit) => lit.fmt(f),
+        }
+    }
 }
 
 impl ParseLiteral for Literal {
@@ -181,10 +236,18 @@ impl ParseLiteral for Literal {
             Ok(litrs::Literal::Integer(lit)) => Ok(Literal::Integer(IntLit { raw: sym, lit })),
             Ok(litrs::Literal::Float(lit)) => Ok(Literal::Float(FloatLit { raw: sym, lit })),
             Ok(litrs::Literal::Byte(lit)) => Ok(Literal::Byte(ByteLit { raw: sym, lit })),
-            Ok(litrs::Literal::ByteString(lit)) => {
-                Ok(Literal::ByteString(InternedBytes::from(lit.value())))
-            }
+            Ok(litrs::Literal::ByteString(lit)) => Ok(Literal::ByteString(ByteStringLit {
+                raw: sym,
+                value: InternedBytes::from(lit.value()),
+                is_raw_byte_string: lit.is_raw_byte_string(),
+            })),
             Err(err) => Err(err),
         }
     }
+}
+
+#[test]
+fn test_literal_traits() {
+    use crate::util::*;
+    assert_golden_traits::<Literal>();
 }
