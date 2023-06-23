@@ -1,11 +1,34 @@
 extern crate alloc;
 
-use crate::Literal;
-use crate::Symbol;
+use crate::{Literal, Symbol};
+use core::fmt::Display;
 
-use alloc::{format, string::String};
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TokenParseError {
+    pub msg: Symbol,
+}
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+impl From<&str> for TokenParseError {
+    fn from(value: &str) -> Self {
+        TokenParseError {
+            msg: Symbol::from(value),
+        }
+    }
+}
+
+impl From<Symbol> for TokenParseError {
+    fn from(value: Symbol) -> Self {
+        TokenParseError { msg: value }
+    }
+}
+
+impl From<&Symbol> for TokenParseError {
+    fn from(value: &Symbol) -> Self {
+        TokenParseError { msg: *value }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token {
     Ident(Symbol),
     Literal(Literal),
@@ -15,7 +38,7 @@ pub enum Token {
     CustomKeyword(Symbol),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Keyword {
     Abstract,
     As,
@@ -71,15 +94,170 @@ pub enum Keyword {
     Yield,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+// impl Keyword {
+//     pub fn as_str(&self)
+// }
+
+impl TryFrom<&str> for Keyword {
+    type Error = TokenParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        use Keyword::*;
+        match value {
+            "abstract" => Ok(Abstract),
+            "as" => Ok(As),
+            "async" => Ok(Async),
+            "auto" => Ok(Auto),
+            "await" => Ok(Await),
+            "become" => Ok(Become),
+            "box" => Ok(Box),
+            "break" => Ok(Break),
+            "const" => Ok(Const),
+            "continue" => Ok(Continue),
+            "crate" => Ok(Crate),
+            "default" => Ok(Default),
+            "do" => Ok(Do),
+            "dyn" => Ok(Dyn),
+            "else" => Ok(Else),
+            "enum" => Ok(Enum),
+            "extern" => Ok(Extern),
+            "final" => Ok(Final),
+            "fn" => Ok(Fn),
+            "for" => Ok(For),
+            "if" => Ok(If),
+            "impl" => Ok(Impl),
+            "in" => Ok(In),
+            "let" => Ok(Let),
+            "loop" => Ok(Loop),
+            "macro" => Ok(Macro),
+            "match" => Ok(Match),
+            "mod" => Ok(Mod),
+            "move" => Ok(Move),
+            "mut" => Ok(Mut),
+            "override" => Ok(Override),
+            "priv" => Ok(Priv),
+            "pub" => Ok(Pub),
+            "ref" => Ok(Ref),
+            "return" => Ok(Return),
+            "Self" => Ok(SelfType),
+            "self" => Ok(SelfValue),
+            "static" => Ok(Static),
+            "struct" => Ok(Struct),
+            "super" => Ok(Super),
+            "trait" => Ok(Trait),
+            "try" => Ok(Try),
+            "type" => Ok(Type),
+            "typeof" => Ok(Typeof),
+            "union" => Ok(Union),
+            "unsafe" => Ok(Unsafe),
+            "unsized" => Ok(Unsized),
+            "use" => Ok(Use),
+            "virtual" => Ok(Virtual),
+            "where" => Ok(Where),
+            "while" => Ok(While),
+            "yield" => Ok(Yield),
+            _ => Err(TokenParseError::from("Invalid keyword '{value}'")),
+        }
+    }
+}
+
+impl From<Keyword> for &'static str {
+    fn from(value: Keyword) -> Self {
+        use Keyword::*;
+        match value {
+            Abstract => "abstract",
+            As => "as",
+            Async => "async",
+            Auto => "auto",
+            Await => "await",
+            Become => "become",
+            Box => "box",
+            Break => "break",
+            Const => "const",
+            Continue => "continue",
+            Crate => "crate",
+            Default => "default",
+            Do => "do",
+            Dyn => "dyn",
+            Else => "else",
+            Enum => "enum",
+            Extern => "extern",
+            Final => "final",
+            Fn => "fn",
+            For => "for",
+            If => "if",
+            Impl => "impl",
+            In => "in",
+            Let => "let",
+            Loop => "loop",
+            Macro => "macro",
+            Match => "match",
+            Mod => "mod",
+            Move => "move",
+            Mut => "mut",
+            Override => "override",
+            Priv => "priv",
+            Pub => "pub",
+            Ref => "ref",
+            Return => "return",
+            SelfType => "Self",
+            SelfValue => "self",
+            Static => "static",
+            Struct => "struct",
+            Super => "super",
+            Trait => "trait",
+            Try => "try",
+            Type => "type",
+            Typeof => "typeof",
+            Union => "union",
+            Unsafe => "unsafe",
+            Unsized => "unsized",
+            Use => "use",
+            Virtual => "virtual",
+            Where => "where",
+            While => "while",
+            Yield => "yield",
+        }
+    }
+}
+
+impl From<&Keyword> for &'static str {
+    fn from(value: &Keyword) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<Keyword> for Symbol {
+    fn from(value: Keyword) -> Self {
+        let value: &'static str = value.into();
+        Symbol::from(value)
+    }
+}
+
+impl From<&Keyword> for Symbol {
+    fn from(value: &Keyword) -> Self {
+        let value: &'static str = value.into();
+        Symbol::from(value)
+    }
+}
+
+impl Display for Keyword {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str((*self).into())
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum GroupPunct {
     Brace,
     Bracket,
     Paren,
 }
 
+// TODO: add struct Group(GroupPunct, TokenStream) that contains this
+
 impl GroupPunct {
-    pub fn open(self) -> char {
+    pub const fn open(self) -> char {
         use GroupPunct::*;
         match self {
             Brace => '{',
@@ -88,7 +266,7 @@ impl GroupPunct {
         }
     }
 
-    pub fn close(self) -> char {
+    pub const fn close(self) -> char {
         use GroupPunct::*;
         match self {
             Brace => '}',
@@ -96,13 +274,9 @@ impl GroupPunct {
             Paren => ')',
         }
     }
-
-    pub fn enclose<T: Into<String>>(self, enclosed: T) -> String {
-        format!("{} {} {}", self.open(), enclosed.into(), self.close())
-    }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Punct {
     Plus,
     Minus,
@@ -208,59 +382,87 @@ impl From<Punct> for &'static str {
     }
 }
 
-impl From<&str> for Punct {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for Punct {
+    type Error = TokenParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         use Punct::*;
         match value {
-            "+" => Plus,
-            "-" => Minus,
-            "*" => Star,
-            "/" => Slash,
-            "%" => Percent,
-            "^" => Caret,
-            "!" => Not,
-            "&" => And,
-            "|" => Or,
-            "&&" => AndAnd,
-            "||" => OrOr,
-            "<<" => Shl,
-            ">>" => Shr,
-            "+=" => PlusEq,
-            "-=" => MinusEq,
-            "*=" => StarEq,
-            "/=" => SlashEq,
-            "%=" => PercentEq,
-            "^=" => CaretEq,
-            "&=" => AndEq,
-            "|=" => OrEq,
-            "<<=" => ShlEq,
-            ">>=" => ShrEq,
-            "=" => Eq,
-            "==" => EqEq,
-            "!=" => Ne,
-            ">" => Gt,
-            "<" => Lt,
-            ">=" => Ge,
-            "<-" => LArrow,
-            "<=" => Le,
-            "@" => At,
-            "_" => Underscore,
-            "." => Dot,
-            ".." => DotDot,
-            "..." => DotDotDot,
-            "..=" => DotDotEq,
-            "," => Comma,
-            ";" => Semi,
-            ":" => Colon,
-            "::" => PathSep,
-            "->" => RArrow,
-            "=>" => FatArrow,
-            "#" => Pound,
-            "$" => Dollar,
-            "?" => Question,
-            "~" => Tilde,
-            _ => panic!("Invalid punctuation `{}`", value),
+            "+" => Ok(Plus),
+            "-" => Ok(Minus),
+            "*" => Ok(Star),
+            "/" => Ok(Slash),
+            "%" => Ok(Percent),
+            "^" => Ok(Caret),
+            "!" => Ok(Not),
+            "&" => Ok(And),
+            "|" => Ok(Or),
+            "&&" => Ok(AndAnd),
+            "||" => Ok(OrOr),
+            "<<" => Ok(Shl),
+            ">>" => Ok(Shr),
+            "+=" => Ok(PlusEq),
+            "-=" => Ok(MinusEq),
+            "*=" => Ok(StarEq),
+            "/=" => Ok(SlashEq),
+            "%=" => Ok(PercentEq),
+            "^=" => Ok(CaretEq),
+            "&=" => Ok(AndEq),
+            "|=" => Ok(OrEq),
+            "<<=" => Ok(ShlEq),
+            ">>=" => Ok(ShrEq),
+            "=" => Ok(Eq),
+            "==" => Ok(EqEq),
+            "!=" => Ok(Ne),
+            ">" => Ok(Gt),
+            "<" => Ok(Lt),
+            ">=" => Ok(Ge),
+            "<-" => Ok(LArrow),
+            "<=" => Ok(Le),
+            "@" => Ok(At),
+            "_" => Ok(Underscore),
+            "." => Ok(Dot),
+            ".." => Ok(DotDot),
+            "..." => Ok(DotDotDot),
+            "..=" => Ok(DotDotEq),
+            "," => Ok(Comma),
+            ";" => Ok(Semi),
+            ":" => Ok(Colon),
+            "::" => Ok(PathSep),
+            "->" => Ok(RArrow),
+            "=>" => Ok(FatArrow),
+            "#" => Ok(Pound),
+            "$" => Ok(Dollar),
+            "?" => Ok(Question),
+            "~" => Ok(Tilde),
+            _ => Err(TokenParseError::from("Invalid punctuation `{value}`")),
         }
+    }
+}
+
+impl From<&Punct> for &'static str {
+    fn from(value: &Punct) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<Punct> for Symbol {
+    fn from(value: Punct) -> Self {
+        let value: &'static str = value.into();
+        Symbol::from(value)
+    }
+}
+
+impl From<&Punct> for Symbol {
+    fn from(value: &Punct) -> Self {
+        let value: &'static str = value.into();
+        Symbol::from(value)
+    }
+}
+
+impl Display for Punct {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.into())
     }
 }
 
@@ -382,4 +584,10 @@ macro_rules! assert_matches_sym {
         assert!(matches!($expr, $crate::Token::$variant(_)));
         assert_eq!($expr, $crate::Token::$variant(Symbol::from($sym)));
     };
+}
+
+#[test]
+fn test_token_traits() {
+    // use crate::util::*;
+    //assert_golden_traits::<Token>();
 }

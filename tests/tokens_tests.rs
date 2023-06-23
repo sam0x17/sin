@@ -1,10 +1,10 @@
 use sin::*;
 
 #[test]
-fn test_enclose() {
-    assert_eq!(GroupPunct::Brace.enclose("test"), "{ test }");
-    assert_eq!(GroupPunct::Bracket.enclose("test"), "[ test ]");
-    assert_eq!(GroupPunct::Paren.enclose("test"), "( test )");
+fn test_tt_group_punct() {
+    assert!(matches!(tt![{}], Token::GroupPunct(GroupPunct::Brace)));
+    assert!(matches!(tt![()], Token::GroupPunct(GroupPunct::Paren)));
+    assert!(matches!(tt![[]], Token::GroupPunct(GroupPunct::Bracket)));
 }
 
 #[test]
@@ -13,9 +13,7 @@ fn test_tt_punct() {
     assert!(matches!(tt![,], Token::Punct(Punct::Comma)));
     assert!(matches!(tt![#], Token::Punct(Punct::Pound)));
     assert!(matches!(tt![;], Token::Punct(Punct::Semi)));
-    assert!(matches!(tt![{}], Token::GroupPunct(GroupPunct::Brace)));
     assert!(matches!(tt![>=], Token::Punct(Punct::Ge)));
-
     assert!(matches!(tt![&], Token::Punct(Punct::And)));
     assert!(matches!(tt![&&], Token::Punct(Punct::AndAnd)));
     assert!(matches!(tt![&=], Token::Punct(Punct::AndEq)));
