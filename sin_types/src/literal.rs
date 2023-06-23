@@ -1,41 +1,11 @@
 extern crate alloc;
 
-use crate::Symbol;
-use ahash::AHasher;
-use alloc::{slice, vec::Vec};
+use crate::{InternedBytes, Symbol};
 use core::{
     hash::{Hash, Hasher},
     ops::Deref,
 };
-use hashbrown::{hash_map::DefaultHashBuilder, HashMap};
 use litrs::ParseError;
-use once_cell::sync::Lazy;
-use spin::Mutex;
-
-const INTERNED_BYTES: Lazy<Mutex<HashMap<u64, Vec<u8>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct InternedBytes {
-    slice: &'static [u8],
-}
-
-impl From<&[u8]> for InternedBytes {
-    fn from(value: &[u8]) -> Self {
-        let mut hasher = AHasher::default();
-        value.hash(&mut hasher);
-        let hash = hasher.finish();
-        let binding = INTERNED_BYTES;
-        let mut data = binding.lock();
-        let entry = data.entry(hash).or_insert(value.iter().cloned().collect());
-        let ptr = entry.as_ptr();
-        let len = entry.len();
-        unsafe {
-            InternedBytes {
-                slice: slice::from_raw_parts(ptr, len),
-            }
-        }
-    }
-}
 
 pub trait ParseLiteral: Sized {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError>;
@@ -159,6 +129,11 @@ impl Deref for ByteLit {
     fn deref(&self) -> &Self::Target {
         &self.lit
     }
+}
+
+pub struct ByteStringLit {
+    pub raw: Symbol,
+    pub value: InternedBytes,
 }
 
 impl ParseLiteral for char {
