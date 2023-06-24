@@ -2,6 +2,7 @@ extern crate alloc;
 extern crate proc_macro;
 
 use crate::Symbol;
+use alloc::{format, string::String};
 use core::fmt::Debug;
 use proc_macro::Span as Span1;
 
@@ -12,12 +13,8 @@ pub struct Span {
 
 #[derive(Clone, Debug, Copy)]
 enum Span2 {
-    ProcMacro(Span1),
-    Local {
-        start: usize,
-        len: usize,
-        source_text: Symbol,
-    },
+    ProcMacro(SpanData),
+    Local(SpanData),
     MixedSite,
     CallSite,
 }
@@ -25,7 +22,7 @@ enum Span2 {
 impl From<Span1> for Span {
     fn from(value: Span1) -> Self {
         Span {
-            span: Span2::ProcMacro(value),
+            span: Span2::ProcMacro(value.span_data()),
         }
     }
 }
@@ -33,7 +30,7 @@ impl From<Span1> for Span {
 impl From<&Span1> for Span {
     fn from(value: &Span1) -> Self {
         Span {
-            span: Span2::ProcMacro(*value),
+            span: Span2::ProcMacro(value.span_data()),
         }
     }
 }
@@ -54,9 +51,36 @@ impl From<Span> for Span1 {
     fn from(value: Span) -> Self {
         match value.span {
             Span2::MixedSite => Span1::mixed_site(),
-            Span2::ProcMacro(span) => span,
+            Span2::ProcMacro(span) => todo!(),
             _ => Span1::call_site(),
         }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SpanData {
+    pub start: usize,
+    pub len: usize,
+    pub source_text: Symbol,
+}
+
+pub trait ProvideSpanData {
+    fn span_data(&self) -> SpanData;
+}
+
+impl ProvideSpanData for Span1 {
+    fn span_data(&self) -> SpanData {
+        todo!()
+    }
+}
+
+pub trait SpanExtensions {
+    fn unique_data(&self) -> String;
+}
+
+impl SpanExtensions for Span1 {
+    fn unique_data(&self) -> String {
+        format!("{self:#?}:{source:#?}", source = self.source_text())
     }
 }
 
@@ -88,16 +112,13 @@ impl Span {
     /// [`call_site`](`Span::call_site`) span.
     pub fn source_text(&self) -> Option<Symbol> {
         match self.span {
-            Span2::Local {
+            Span2::Local(SpanData {
                 start,
                 len,
                 source_text,
-            } => Some(source_text[start..(start + len)].into()),
+            }) => Some(source_text[start..(start + len)].into()),
             Span2::MixedSite | Span2::CallSite => None,
-            Span2::ProcMacro(span) => match span.source_text() {
-                Some(source_text) => Some(source_text.into()),
-                None => None,
-            },
+            Span2::ProcMacro(span) => Some(span.source_text),
         }
     }
 
@@ -108,11 +129,11 @@ impl Span {
     pub fn from_source<S: Into<Symbol>>(source: S) -> Span {
         let source = source.into();
         Span {
-            span: Span2::Local {
+            span: Span2::Local(SpanData {
                 start: 0,
                 len: source.len(),
                 source_text: source,
-            },
+            }),
         }
     }
 }
