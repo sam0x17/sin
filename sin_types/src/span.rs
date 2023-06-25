@@ -51,7 +51,7 @@ impl From<Span> for Span1 {
     fn from(value: Span) -> Self {
         match value.span {
             Span2::MixedSite => Span1::mixed_site(),
-            Span2::ProcMacro(span) => todo!(),
+            Span2::ProcMacro(_span) => todo!(),
             _ => Span1::call_site(),
         }
     }
