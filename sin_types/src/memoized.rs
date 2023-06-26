@@ -28,18 +28,51 @@ thread_local! {
     static INTERNED: RefCell<HashMap<u64, StaticAlloc>> = RefCell::new(HashMap::new());
 }
 
-pub struct Interned<I: Hash, T: Hash + Sync> {
-    _input: PhantomData<I>,
+pub struct Interned<T: Hash + Sync> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
 
-impl<I: Hash, T: Hash + Sync> Interned<I, T> {
-    pub fn memoize<R: AsRef<I>, G>(input: R, generator: G) -> Self
+impl<T: Hash + Sync> Interned<T> {
+    pub fn from(value: &T) -> Self {
+        let mut hasher = DefaultHasher::default();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        let entry = INTERNED.with(|interned| {
+            *interned
+                .borrow_mut()
+                .entry(hash)
+                .or_insert(StaticAlloc::from(value))
+        });
+        Interned {
+            _value: PhantomData,
+            value: entry,
+        }
+    }
+
+    pub fn interned_value(&self) -> &T {
+        unsafe { self.value.as_ref() }
+    }
+}
+
+impl<T: Hash + Sync> Deref for Interned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.interned_value()
+    }
+}
+
+pub struct Memoized<I: Hash, T: Hash + Sync> {
+    _input: PhantomData<I>,
+    interned: Interned<T>,
+}
+
+impl<I: Hash, T: Hash + Sync> Memoized<I, T> {
+    pub fn memoize<G>(input: &I, generator: G) -> Self
     where
         G: Fn(&I) -> T,
     {
-        let input = input.as_ref();
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
@@ -51,42 +84,19 @@ impl<I: Hash, T: Hash + Sync> Interned<I, T> {
             },
         );
         // only check INTERNED if MEMOIZED didn't have the entry
-        let mut hasher = DefaultHasher::default();
-        unsafe { entry.as_ref::<T>().hash(&mut hasher) };
-        let value_hash = hasher.finish();
-        let entry =
-            INTERNED.with(|interned| *interned.borrow_mut().entry(value_hash).or_insert(entry));
-        Interned {
+        let value: &T = unsafe { entry.as_ref::<T>() };
+        Memoized {
             _input: PhantomData,
-            _value: PhantomData,
-            value: entry,
-        }
-    }
-
-    pub fn from<R: AsRef<T>>(value: R) -> Self {
-        let value = value.as_ref();
-        let mut hasher = DefaultHasher::default();
-        value.hash(&mut hasher);
-        let hash = hasher.finish();
-        let entry = INTERNED.with(|interned| {
-            *interned
-                .borrow_mut()
-                .entry(hash)
-                .or_insert(StaticAlloc::from(value))
-        });
-        Interned {
-            _input: PhantomData,
-            _value: PhantomData,
-            value: entry,
+            interned: Interned::from(&value),
         }
     }
 
     pub fn interned_value(&self) -> &T {
-        unsafe { self.value.as_ref() }
+        self.interned.interned_value()
     }
 }
 
-impl<I: Hash, T: Hash + Sync> Deref for Interned<I, T> {
+impl<I: Hash, T: Hash + Sync> Deref for Memoized<I, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
