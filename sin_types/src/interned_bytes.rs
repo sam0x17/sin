@@ -1,9 +1,5 @@
-extern crate alloc;
-
-use core::hash::{Hash, Hasher};
-
 use ahash::AHasher;
-use alloc::boxed::Box;
+use core::hash::{Hash, Hasher};
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;

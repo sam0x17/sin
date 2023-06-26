@@ -1,5 +1,3 @@
-#![no_std]
-
 mod interned_cache;
 pub use interned_cache::*;
 mod interned_bytes;

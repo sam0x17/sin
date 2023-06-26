@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use crate::{InternedBytes, Symbol};
 use core::{
     fmt::Display,

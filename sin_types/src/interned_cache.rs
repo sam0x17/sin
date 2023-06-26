@@ -1,17 +1,11 @@
-extern crate alloc;
-
 use core::{
     hash::{Hash, Hasher},
     marker::PhantomData,
-    ops::Deref,
 };
 
 use ahash::AHasher;
-use alloc::{boxed::Box, sync::Arc};
-use core::any::{Any, TypeId};
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 struct StaticAlloc(*const ());

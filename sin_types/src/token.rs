@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use crate::{Literal, Symbol};
 use core::fmt::Display;
 
