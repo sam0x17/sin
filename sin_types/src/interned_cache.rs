@@ -1,42 +1,39 @@
+use ahash::AHasher;
 use core::{
     hash::{Hash, Hasher},
     marker::PhantomData,
 };
-
-use ahash::AHasher;
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 struct StaticAlloc(*const ());
 
-unsafe impl Send for StaticAlloc {}
-unsafe impl Sync for StaticAlloc {}
-
 impl StaticAlloc {
-    pub const unsafe fn as_ref<'a, T: Send + Sync>(&self) -> &'a T {
+    pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
         &*(self.0 as *const T)
     }
 
-    pub fn from<T: Send + Sync>(value: T) -> Self {
+    pub fn from<T>(value: T) -> Self {
         StaticAlloc((Box::leak(Box::from(value)) as *const T) as *const ())
     }
 }
 
-/// `hash(I) => ptr`
-static INTERNED_CACHE: Lazy<DashMap<u64, StaticAlloc>> = Lazy::new(|| DashMap::new());
+thread_local! {
+    /// `hash(I) => ptr`
+    static INTERNED_CACHE: DashMap<u64, StaticAlloc> = DashMap::new();
 
-/// `hash(T) => ptr`
-static INTERNED: Lazy<DashMap<u64, StaticAlloc>> = Lazy::new(|| DashMap::new());
+    /// `hash(T) => ptr`
+    static INTERNED: DashMap<u64, StaticAlloc> = DashMap::new();
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct InternedCache<T: Hash + Send + Sync, I: Hash> {
+pub struct InternedCache<T: Hash, I: Hash> {
     ptr: StaticAlloc,
     _value: PhantomData<T>,
     _input: PhantomData<I>,
 }
 
-impl<T: Hash + Send + Sync, I: Hash> InternedCache<T, I> {
+impl<T: Hash, I: Hash> InternedCache<T, I> {
     pub fn from_input<R: AsRef<I>, G>(input: R, generator: G) -> Self
     where
         G: Fn() -> T,
@@ -46,18 +43,24 @@ impl<T: Hash + Send + Sync, I: Hash> InternedCache<T, I> {
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
         let generate = || -> StaticAlloc { StaticAlloc::from(generator()) };
-        let entry = INTERNED_CACHE.entry(input_hash).or_insert_with(generate);
-        let mut hasher = AHasher::default();
-        unsafe {
-            entry.as_ref::<T>().hash(&mut hasher);
-        }
-        let value_hash = hasher.finish();
-        let ptr = *INTERNED.entry(value_hash).or_insert(*entry);
-        InternedCache {
-            ptr,
-            _value: PhantomData,
-            _input: PhantomData,
-        }
+        let mut ret: Option<InternedCache<T, I>> = None;
+        INTERNED_CACHE.with(|interned_cache| {
+            let entry = interned_cache.entry(input_hash).or_insert_with(generate);
+            let mut hasher = AHasher::default();
+            unsafe {
+                entry.as_ref::<T>().hash(&mut hasher);
+            }
+            INTERNED.with(|interned| {
+                let value_hash = hasher.finish();
+                let ptr = *interned.entry(value_hash).or_insert(*entry);
+                ret = Some(InternedCache {
+                    ptr,
+                    _value: PhantomData,
+                    _input: PhantomData,
+                });
+            });
+        });
+        ret.unwrap()
     }
 
     pub fn from_value<R: AsRef<T>>(value: R) -> Self {
@@ -65,14 +68,18 @@ impl<T: Hash + Send + Sync, I: Hash> InternedCache<T, I> {
         let mut hasher = AHasher::default();
         value.hash(&mut hasher);
         let value_hash = hasher.finish();
-        let ptr = *INTERNED
-            .entry(value_hash)
-            .or_insert(StaticAlloc::from(value));
-        InternedCache {
-            ptr,
-            _value: PhantomData,
-            _input: PhantomData,
-        }
+        let mut ret: Option<InternedCache<T, I>> = None;
+        INTERNED.with(|interned| {
+            let ptr = *interned
+                .entry(value_hash)
+                .or_insert(StaticAlloc::from(value));
+            ret = Some(InternedCache {
+                ptr,
+                _value: PhantomData,
+                _input: PhantomData,
+            });
+        });
+        ret.unwrap()
     }
 }
 
