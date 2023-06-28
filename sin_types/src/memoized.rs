@@ -55,12 +55,12 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-pub struct Interned<T: Hash> {
+pub struct Interned<T: Hash + Clone> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
 
-impl<T: Hash> Clone for Interned<T> {
+impl<T: Hash + Clone> Clone for Interned<T> {
     fn clone(&self) -> Self {
         Self {
             _value: self._value.clone(),
@@ -69,9 +69,9 @@ impl<T: Hash> Clone for Interned<T> {
     }
 }
 
-impl<T: Hash> Copy for Interned<T> {}
+impl<T: Hash + Clone> Copy for Interned<T> {}
 
-impl<T: Hash> Interned<T> {
+impl<T: Hash + Clone> Interned<T> {
     pub fn from(value: T) -> Self
     where
         T: 'static,
@@ -90,7 +90,7 @@ impl<T: Hash> Interned<T> {
         });
         Interned {
             _value: PhantomData,
-            value: entry,
+            value: entry.clone(),
         }
     }
 
@@ -99,7 +99,7 @@ impl<T: Hash> Interned<T> {
     }
 }
 
-impl<T: Hash> Deref for Interned<T> {
+impl<T: Hash + Clone> Deref for Interned<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -107,33 +107,33 @@ impl<T: Hash> Deref for Interned<T> {
     }
 }
 
-impl<T: Hash + PartialEq> PartialEq for Interned<T> {
+impl<T: Hash + Clone + PartialEq> PartialEq for Interned<T> {
     fn eq(&self, other: &Self) -> bool {
         self.interned_value() == other.interned_value()
     }
 }
 
-impl<T: Hash + Eq> Eq for Interned<T> {}
+impl<T: Hash + Clone + Eq> Eq for Interned<T> {}
 
-impl<T: Hash + PartialOrd> PartialOrd for Interned<T> {
+impl<T: Hash + Clone + PartialOrd> PartialOrd for Interned<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.interned_value().partial_cmp(other.interned_value())
     }
 }
 
-impl<T: Hash + Ord> Ord for Interned<T> {
+impl<T: Hash + Clone + Ord> Ord for Interned<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.interned_value().cmp(other.interned_value())
     }
 }
 
-impl<T: Hash> Hash for Interned<T> {
+impl<T: Hash + Clone> Hash for Interned<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.interned_value().hash(state)
     }
 }
 
-impl<T: Hash + std::fmt::Debug> std::fmt::Debug for Interned<T> {
+impl<T: Hash + Clone + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Interned")
             .field("interned_value", &self.interned_value())
@@ -141,13 +141,13 @@ impl<T: Hash + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     }
 }
 
-impl<T: Hash + Display> Display for Interned<T> {
+impl<T: Hash + Clone + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.interned_value().fmt(f)
     }
 }
 
-pub struct Memoized<I: Hash, T: Hash> {
+pub struct Memoized<I: Hash, T: Hash + Clone> {
     _input: PhantomData<I>,
     interned: Interned<T>,
 }
@@ -192,7 +192,7 @@ impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash> Clone for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone> Clone for Memoized<I, T> {
     fn clone(&self) -> Self {
         Self {
             _input: self._input.clone(),
@@ -201,7 +201,7 @@ impl<I: Hash, T: Hash> Clone for Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash> Copy for Memoized<I, T> {}
+impl<I: Hash, T: Hash + Clone> Copy for Memoized<I, T> {}
 
 impl<I: Hash, T: Hash + Clone> Deref for Memoized<I, T> {
     type Target = T;
