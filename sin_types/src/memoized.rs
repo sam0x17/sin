@@ -334,3 +334,14 @@ fn test_memoized_basic() {
     assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
     assert_eq!(num_interned::<usize>(), initial_interned + 2);
 }
+
+#[test]
+fn test_interned_byte_arrays() {
+    let a = Interned::from(&[1u8, 2u8, 3u8]);
+    let b = Interned::from(&[5u8, 4u8, 3u8, 2u8, 1u8]);
+    assert_ne!(a.interned_value().as_ptr(), b.interned_value().as_ptr());
+    let c = Interned::from(&[1u8, 2u8, 3u8]);
+    assert_eq!(a.interned_value().as_ptr(), c.interned_value().as_ptr());
+    assert_eq!(a.interned_value(), c.interned_value());
+    assert_eq!(a, c);
+}
