@@ -55,11 +55,21 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-#[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
+
+impl<T: Hash> Clone for Interned<T> {
+    fn clone(&self) -> Self {
+        Self {
+            _value: self._value.clone(),
+            value: self.value.clone(),
+        }
+    }
+}
+
+impl<T: Hash> Copy for Interned<T> {}
 
 impl<T: Hash> Interned<T> {
     pub fn from(value: T) -> Self
@@ -142,14 +152,12 @@ pub struct Memoized<I: Hash, T: Hash> {
     interned: Interned<T>,
 }
 
-impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
-    pub fn memoize<G>(input: &I, generator: G) -> Self
+impl<I: Hash, T: Hash> Memoized<I, T> {
+    pub fn from<G>(input: &I, generator: G) -> Self
     where
         G: Fn(&I) -> T,
         T: 'static,
     {
-        // TODO: UB in event of hash collision
-        // TODO: prefix keys with type to avoid multi-type collision
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
@@ -166,24 +174,81 @@ impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
                 Entry::Vacant(entry) => *entry.insert(generate_value()),
             }
         });
-        // only check INTERNED if MEMOIZED didn't have the entry
-        let value: &T = unsafe { entry.as_ref::<T>() };
+        let value_copy: T = unsafe { std::mem::transmute_copy(entry.as_ref::<T>()) };
         Memoized {
             _input: PhantomData,
-            interned: Interned::from(value.clone()),
+            interned: Interned::from(value_copy),
         }
     }
 
     pub fn interned_value(&self) -> &T {
         self.interned.interned_value()
     }
+
+    pub fn interned(&self) -> Interned<T> {
+        Interned {
+            _value: PhantomData,
+            value: self.interned.value,
+        }
+    }
 }
 
-impl<I: Hash, T: Hash + Clone> Deref for Memoized<I, T> {
+impl<I: Hash, T: Hash> Clone for Memoized<I, T> {
+    fn clone(&self) -> Self {
+        Self {
+            _input: self._input.clone(),
+            interned: self.interned.clone(),
+        }
+    }
+}
+
+impl<I: Hash, T: Hash> Copy for Memoized<I, T> {}
+
+impl<I: Hash, T: Hash> Deref for Memoized<I, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.interned_value()
+    }
+}
+
+impl<I: Hash, T: Hash + PartialEq> PartialEq for Memoized<I, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.interned_value() == other.interned_value()
+    }
+}
+
+impl<I: Hash, T: Hash + Eq> Eq for Memoized<I, T> {}
+
+impl<I: Hash, T: Hash + PartialOrd> PartialOrd for Memoized<I, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.interned_value().partial_cmp(other.interned_value())
+    }
+}
+
+impl<I: Hash, T: Hash + Ord> Ord for Memoized<I, T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.interned_value().cmp(other.interned_value())
+    }
+}
+
+impl<I: Hash, T: Hash> Hash for Memoized<I, T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.interned_value().hash(state)
+    }
+}
+
+impl<I: Hash, T: Hash + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Memoized")
+            .field("interned_value", &self.interned_value())
+            .finish()
+    }
+}
+
+impl<I: Hash, T: Hash + Display> Display for Memoized<I, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.interned_value().fmt(f)
     }
 }
 
@@ -202,8 +267,14 @@ fn test_static_alloc() {
 }
 
 #[cfg(test)]
-fn num_memoized() -> usize {
-    MEMOIZED.with(|memoized| memoized.borrow().len())
+fn num_memoized<T: 'static>() -> usize {
+    MEMOIZED.with(|interned| {
+        interned
+            .borrow_mut()
+            .entry(TypeId::of::<T>())
+            .or_default()
+            .len()
+    })
 }
 
 #[cfg(test)]
@@ -246,4 +317,21 @@ fn test_interned_str_types() {
 fn test_interned_deref() {
     let c = Interned::from("for the good of all of us except the ones who are dead");
     assert_eq!(c.chars().next().unwrap(), 'f');
+}
+
+#[test]
+fn test_memoized_basic() {
+    let initial_interned = num_interned::<usize>();
+    let initial_memoized = num_memoized::<usize>();
+    let a = Memoized::from(&"some_input", |input| input.len());
+    let b = Memoized::from(&"other", |input| input.len());
+    assert_ne!(a, b);
+    let c = Memoized::from(&"some_input", |input| input.len());
+    assert_eq!(a, c);
+    assert_ne!(b, c);
+    assert_eq!(*a.interned_value(), 10);
+    assert_eq!(*b.interned_value(), 5);
+    assert_eq!(*c.interned_value(), 10);
+    assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
+    assert_eq!(num_interned::<usize>(), initial_interned + 2);
 }
