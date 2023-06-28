@@ -1,11 +1,12 @@
 use std::{
+    any::TypeId,
     cell::RefCell,
     collections::{
         hash_map::{DefaultHasher, Entry},
         HashMap,
     },
     fmt::Display,
-    hash::{Hash, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
 };
@@ -24,9 +25,34 @@ impl StaticAlloc {
     }
 }
 
+struct TypeIdHasher {
+    hash: Option<u64>,
+}
+
+impl Hasher for TypeIdHasher {
+    fn finish(&self) -> u64 {
+        self.hash.unwrap()
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        debug_assert!(bytes.len() == 8);
+        self.hash = Some(bytes.as_ptr() as u64);
+    }
+}
+
+struct TypeIdHasherBuilder;
+
+impl BuildHasher for TypeIdHasherBuilder {
+    type Hasher = TypeIdHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        TypeIdHasher { hash: None }
+    }
+}
+
 thread_local! {
     static MEMOIZED: RefCell<HashMap<u64, StaticAlloc>> = RefCell::new(HashMap::new());
-    static INTERNED: RefCell<HashMap<u64, StaticAlloc>> = RefCell::new(HashMap::new());
+    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
 #[derive(Copy, Clone)]
@@ -36,15 +62,21 @@ pub struct Interned<T: Hash> {
 }
 
 impl<T: Hash> Interned<T> {
-    pub fn from(value: T) -> Self {
+    pub fn from(value: T) -> Self
+    where
+        T: 'static,
+    {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
+        let type_id = TypeId::of::<T>();
         let entry = INTERNED.with(|interned| {
             *interned
                 .borrow_mut()
+                .entry(type_id)
+                .or_insert_with(|| HashMap::new())
                 .entry(hash)
-                .or_insert(StaticAlloc::from(value))
+                .or_insert_with(|| StaticAlloc::from(value))
         });
         Interned {
             _value: PhantomData,
@@ -114,6 +146,7 @@ impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
     pub fn memoize<G>(input: &I, generator: G) -> Self
     where
         G: Fn(&I) -> T,
+        T: 'static,
     {
         // TODO: UB in event of hash collision
         // TODO: prefix keys with type to avoid multi-type collision
@@ -168,13 +201,19 @@ fn num_memoized() -> usize {
 }
 
 #[cfg(test)]
-fn num_interned() -> usize {
-    INTERNED.with(|interned| interned.borrow().len())
+fn num_interned<T: 'static>() -> usize {
+    INTERNED.with(|interned| {
+        interned
+            .borrow_mut()
+            .entry(TypeId::of::<T>())
+            .or_default()
+            .len()
+    })
 }
 
 #[test]
 fn test_interned_basics() {
-    let initial_interned = num_interned();
+    let initial_interned = num_interned::<i32>();
     let a = Interned::from(32);
     let b = Interned::from(27);
     assert_ne!(a, b);
@@ -184,7 +223,7 @@ fn test_interned_basics() {
     assert_eq!(*a.interned_value(), 32);
     assert_eq!(*b.interned_value(), 27);
     assert_eq!(*c.interned_value(), 32);
-    assert_eq!(num_interned(), initial_interned + 2);
+    assert_eq!(num_interned::<i32>(), initial_interned + 2);
 }
 
 #[test]
