@@ -51,8 +51,8 @@ impl BuildHasher for TypeIdHasherBuilder {
 }
 
 thread_local! {
-    static MEMOIZED: RefCell<HashMap<u64, StaticAlloc>> = RefCell::new(HashMap::new());
     static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
 #[derive(Copy, Clone)]
@@ -153,13 +153,19 @@ impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
+        let type_id = TypeId::of::<T>();
         let generate_value = || -> StaticAlloc { StaticAlloc::from(generator(input)) };
-        let entry = MEMOIZED.with(
-            |memoized| match (*memoized).borrow_mut().entry(input_hash) {
+        let entry = MEMOIZED.with(|memoized| {
+            match (*memoized)
+                .borrow_mut()
+                .entry(type_id)
+                .or_insert_with(|| HashMap::new())
+                .entry(input_hash)
+            {
                 Entry::Occupied(entry) => return *entry.get(), // break early
                 Entry::Vacant(entry) => *entry.insert(generate_value()),
-            },
-        );
+            }
+        });
         // only check INTERNED if MEMOIZED didn't have the entry
         let value: &T = unsafe { entry.as_ref::<T>() };
         Memoized {
