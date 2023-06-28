@@ -12,16 +12,39 @@ use std::{
 };
 
 /// implementation detail
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct StaticAlloc(*const ());
+#[derive(Clone, Copy)]
+struct StaticAlloc {
+    ptr: *const (),
+    hash: u64,
+}
 
 impl StaticAlloc {
     pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
-        &*(self.0 as *const T)
+        &*(self.ptr as *const T)
     }
 
-    pub fn from<T>(value: T) -> Self {
-        StaticAlloc((Box::leak(Box::from(value)) as *const T) as *const ())
+    pub fn from<T: Hash>(value: T) -> Self {
+        let mut hasher = DefaultHasher::default();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        let ptr = (Box::leak(Box::from(value)) as *const T) as *const ();
+        StaticAlloc { ptr, hash }
+    }
+}
+
+impl PartialEq for StaticAlloc {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for StaticAlloc {}
+
+impl std::fmt::Debug for StaticAlloc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticAlloc")
+            .field("hash", &self.hash)
+            .finish()
     }
 }
 
@@ -256,8 +279,9 @@ fn test_static_alloc() {
     let a = StaticAlloc::from(37);
     assert_eq!(unsafe { *a.as_ref::<i32>() }, 37);
     let b = StaticAlloc::from(37);
-    assert_ne!(a, b);
+    assert_eq!(a, b); // note: we base equality off of the hash, not the address
     let c = StaticAlloc::from(8348783947u64);
+    assert_ne!(b, c);
     assert_eq!(unsafe { *c.as_ref::<u64>() }, 8348783947u64);
     let d = StaticAlloc::from(String::from("test"));
     assert_eq!(unsafe { d.as_ref::<String>() }, &"test");
