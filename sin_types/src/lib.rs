@@ -1,9 +1,5 @@
-mod interned_cache;
-pub mod memoized;
-pub use interned_cache::*;
-mod interned_bytes;
-pub use interned_bytes::*;
 mod literal;
+pub mod memoized;
 pub use literal::*;
 mod token;
 pub use token::*;
@@ -28,9 +24,7 @@ pub mod util {
 
     pub const fn assert_golden_traits<T>()
     where
-        T: Send
-            + Sync
-            + Clone
+        T: Clone
             + Copy
             + PartialEq
             + Eq

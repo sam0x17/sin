@@ -26,7 +26,7 @@ impl From<&Symbol> for TokenParseError {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token {
     Ident(Symbol),
     Literal(Literal),
@@ -587,5 +587,5 @@ macro_rules! assert_matches_sym {
 #[test]
 fn test_token_traits() {
     // use crate::util::*;
-    //assert_golden_traits::<Token>();
+    // assert_golden_traits::<Token>();
 }

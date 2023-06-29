@@ -78,7 +78,7 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-pub struct Interned<T: Hash + Clone> {
+pub struct Interned<T: Hash + ?Sized> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
@@ -151,7 +151,7 @@ derive_staticize!(i128);
 derive_staticize!(f32);
 derive_staticize!(f64);
 
-impl<T: Hash + Clone + Staticize> Interned<T> {
+impl<T: Hash + Staticize> Interned<T> {
     pub fn from(value: T) -> Self {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
@@ -167,16 +167,27 @@ impl<T: Hash + Clone + Staticize> Interned<T> {
         });
         Interned {
             _value: PhantomData,
-            value: entry.clone(),
+            value: entry,
         }
     }
 
     pub fn interned_value<'a>(&self) -> &'a T {
         unsafe { self.value.as_ref() }
     }
+
+    pub fn interned_value_copy(&self) -> T {
+        let copy: T = unsafe { std::mem::transmute_copy(self.interned_value()) };
+        copy
+    }
+
+    pub fn release_lifetimes(self) -> Self {
+        let copy: Self = unsafe { std::mem::transmute_copy(&self) };
+        drop(self);
+        copy
+    }
 }
 
-impl<T: Hash + Clone + Staticize> Deref for Interned<T> {
+impl<T: Hash + Staticize> Deref for Interned<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -184,33 +195,33 @@ impl<T: Hash + Clone + Staticize> Deref for Interned<T> {
     }
 }
 
-impl<T: Hash + Clone + PartialEq + Staticize> PartialEq for Interned<T> {
+impl<T: Hash + PartialEq + Staticize> PartialEq for Interned<T> {
     fn eq(&self, other: &Self) -> bool {
         self.interned_value() == other.interned_value()
     }
 }
 
-impl<T: Hash + Clone + Staticize + Eq> Eq for Interned<T> {}
+impl<T: Hash + Staticize + Eq> Eq for Interned<T> {}
 
-impl<T: Hash + Clone + Staticize + PartialOrd> PartialOrd for Interned<T> {
+impl<T: Hash + Staticize + PartialOrd> PartialOrd for Interned<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.interned_value().partial_cmp(other.interned_value())
     }
 }
 
-impl<T: Hash + Clone + Staticize + Ord> Ord for Interned<T> {
+impl<T: Hash + Staticize + Ord> Ord for Interned<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.interned_value().cmp(other.interned_value())
     }
 }
 
-impl<T: Hash + Clone + Staticize> Hash for Interned<T> {
+impl<T: Hash + Staticize> Hash for Interned<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.interned_value().hash(state)
     }
 }
 
-impl<T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
+impl<T: Hash + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Interned")
             .field("interned_value", &self.interned_value())
@@ -218,18 +229,18 @@ impl<T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for Interned
     }
 }
 
-impl<T: Hash + Clone + Staticize + Display> Display for Interned<T> {
+impl<T: Hash + Staticize + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.interned_value().fmt(f)
     }
 }
 
-pub struct Memoized<I: Hash, T: Hash + Clone + Staticize> {
+pub struct Memoized<I: Hash, T: Hash + Staticize + ?Sized> {
     _input: PhantomData<I>,
     interned: Interned<T>,
 }
 
-impl<I: Hash, T: Hash + Clone + Staticize> Memoized<I, T> {
+impl<I: Hash, T: Hash + Staticize> Memoized<I, T> {
     pub fn from<G>(input: &I, generator: G) -> Self
     where
         G: Fn(&I) -> T,
@@ -250,9 +261,10 @@ impl<I: Hash, T: Hash + Clone + Staticize> Memoized<I, T> {
                 Entry::Vacant(entry) => *entry.insert(generate_value()),
             }
         });
+        let value: T = unsafe { std::mem::transmute_copy(entry.as_ref::<T>()) };
         Memoized {
             _input: PhantomData,
-            interned: Interned::from(unsafe { entry.as_ref::<T>().clone() }),
+            interned: Interned::from(value),
         }
     }
 
@@ -279,7 +291,7 @@ impl<I: Hash, T: Hash + Clone + Staticize> Clone for Memoized<I, T> {
 
 impl<I: Hash, T: Hash + Clone + Staticize> Copy for Memoized<I, T> {}
 
-impl<I: Hash, T: Hash + Clone + Staticize> Deref for Memoized<I, T> {
+impl<I: Hash, T: Hash + Staticize> Deref for Memoized<I, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -287,33 +299,33 @@ impl<I: Hash, T: Hash + Clone + Staticize> Deref for Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Clone + PartialEq + Staticize> PartialEq for Memoized<I, T> {
+impl<I: Hash, T: Hash + PartialEq + Staticize> PartialEq for Memoized<I, T> {
     fn eq(&self, other: &Self) -> bool {
         self.interned_value() == other.interned_value()
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Eq + Staticize> Eq for Memoized<I, T> {}
+impl<I: Hash, T: Hash + Eq + Staticize> Eq for Memoized<I, T> {}
 
-impl<I: Hash, T: Hash + Clone + PartialOrd + Staticize> PartialOrd for Memoized<I, T> {
+impl<I: Hash, T: Hash + PartialOrd + Staticize> PartialOrd for Memoized<I, T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.interned_value().partial_cmp(other.interned_value())
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Ord + Staticize> Ord for Memoized<I, T> {
+impl<I: Hash, T: Hash + Ord + Staticize> Ord for Memoized<I, T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.interned_value().cmp(other.interned_value())
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Staticize> Hash for Memoized<I, T> {
+impl<I: Hash, T: Hash + Staticize> Hash for Memoized<I, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.interned_value().hash(state)
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
+impl<I: Hash, T: Hash + Staticize + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Memoized")
             .field("interned_value", &self.interned_value())
@@ -321,7 +333,7 @@ impl<I: Hash, T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Staticize + Display> Display for Memoized<I, T> {
+impl<I: Hash, T: Hash + Staticize + Display> Display for Memoized<I, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.interned_value().fmt(f)
     }
