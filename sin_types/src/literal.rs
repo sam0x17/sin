@@ -237,7 +237,7 @@ impl ParseLiteral for Literal {
             Ok(litrs::Literal::Float(lit)) => Ok(Literal::Float(FloatLit { raw: sym, lit })),
             Ok(litrs::Literal::Byte(lit)) => Ok(Literal::Byte(ByteLit { raw: sym, lit })),
             Ok(litrs::Literal::ByteString(lit)) => {
-                let value: Interned<&[u8]> = Interned::from(lit.value());
+                let value: Interned<&[u8]> = Interned::from_slice(lit.value());
                 let value_cpy = unsafe { std::mem::transmute_copy(&value) };
                 Ok(Literal::ByteString(ByteStringLit {
                     raw: sym,

@@ -9,6 +9,7 @@ use std::{
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
+    slice::SliceIndex,
 };
 
 /// implementation detail
@@ -134,6 +135,8 @@ derive_staticize_slice!(&str);
 derive_staticize_slice!(&[u8]);
 derive_staticize_slice!(&[char]);
 
+derive_staticize!([u8]);
+
 derive_staticize!(bool);
 derive_staticize!(str);
 derive_staticize!(String);
@@ -171,18 +174,31 @@ impl<T: Hash + Staticize> Interned<T> {
         }
     }
 
+    pub fn from_slice<G: Hash>(slice: &[G]) -> Interned<T> {
+        let mut hasher = DefaultHasher::default();
+        slice.hash(&mut hasher);
+        let hash = hasher.finish();
+        let type_id = static_type_id::<T>();
+        let entry = INTERNED.with(|interned| {
+            *interned
+                .borrow_mut()
+                .entry(type_id)
+                .or_insert_with(|| HashMap::new())
+                .entry(hash)
+                .or_insert_with(|| StaticAlloc::from(slice))
+        });
+        Interned {
+            _value: PhantomData,
+            value: entry,
+        }
+    }
+
     pub fn interned_value<'a>(&self) -> &'a T {
         unsafe { self.value.as_ref() }
     }
 
     pub fn interned_value_copy(&self) -> T {
         let copy: T = unsafe { std::mem::transmute_copy(self.interned_value()) };
-        copy
-    }
-
-    pub fn release_lifetimes(self) -> Self {
-        let copy: Self = unsafe { std::mem::transmute_copy(&self) };
-        drop(self);
         copy
     }
 }
