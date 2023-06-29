@@ -94,15 +94,69 @@ impl<T: Hash + Clone> Clone for Interned<T> {
 
 impl<T: Hash + Clone> Copy for Interned<T> {}
 
-impl<T: Hash + Clone> Interned<T> {
-    pub fn from(value: T) -> Self
-    where
-        T: 'static,
-    {
+pub fn static_type_id<T>() -> TypeId
+where
+    T: Staticize,
+{
+    TypeId::of::<T::Static>()
+}
+
+pub trait Staticize {
+    type Static: 'static;
+}
+
+impl<'a, T> Staticize for &'a T
+where
+    T: Staticize,
+{
+    type Static = &'static T::Static;
+}
+
+#[macro_export]
+macro_rules! derive_staticize {
+    ($typ:ty) => {
+        impl $crate::memoized::Staticize for $typ {
+            type Static = &'static $typ;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! derive_staticize_slice {
+    (&$typ:ty) => {
+        impl $crate::memoized::Staticize for &$typ {
+            type Static = &'static $typ;
+        }
+    };
+}
+
+derive_staticize_slice!(&str);
+derive_staticize_slice!(&[u8]);
+derive_staticize_slice!(&[char]);
+
+derive_staticize!(bool);
+derive_staticize!(str);
+derive_staticize!(String);
+derive_staticize!(usize);
+derive_staticize!(u8);
+derive_staticize!(u16);
+derive_staticize!(u32);
+derive_staticize!(u64);
+derive_staticize!(u128);
+derive_staticize!(i8);
+derive_staticize!(i16);
+derive_staticize!(i32);
+derive_staticize!(i64);
+derive_staticize!(i128);
+derive_staticize!(f32);
+derive_staticize!(f64);
+
+impl<T: Hash + Clone + Staticize> Interned<T> {
+    pub fn from(value: T) -> Self {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
-        let type_id = TypeId::of::<T>();
+        let type_id = static_type_id::<T>();
         let entry = INTERNED.with(|interned| {
             *interned
                 .borrow_mut()
@@ -117,12 +171,12 @@ impl<T: Hash + Clone> Interned<T> {
         }
     }
 
-    pub fn interned_value(&self) -> &T {
+    pub fn interned_value<'a>(&self) -> &'a T {
         unsafe { self.value.as_ref() }
     }
 }
 
-impl<T: Hash + Clone> Deref for Interned<T> {
+impl<T: Hash + Clone + Staticize> Deref for Interned<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -130,33 +184,33 @@ impl<T: Hash + Clone> Deref for Interned<T> {
     }
 }
 
-impl<T: Hash + Clone + PartialEq> PartialEq for Interned<T> {
+impl<T: Hash + Clone + PartialEq + Staticize> PartialEq for Interned<T> {
     fn eq(&self, other: &Self) -> bool {
         self.interned_value() == other.interned_value()
     }
 }
 
-impl<T: Hash + Clone + Eq> Eq for Interned<T> {}
+impl<T: Hash + Clone + Staticize + Eq> Eq for Interned<T> {}
 
-impl<T: Hash + Clone + PartialOrd> PartialOrd for Interned<T> {
+impl<T: Hash + Clone + Staticize + PartialOrd> PartialOrd for Interned<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.interned_value().partial_cmp(other.interned_value())
     }
 }
 
-impl<T: Hash + Clone + Ord> Ord for Interned<T> {
+impl<T: Hash + Clone + Staticize + Ord> Ord for Interned<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.interned_value().cmp(other.interned_value())
     }
 }
 
-impl<T: Hash + Clone> Hash for Interned<T> {
+impl<T: Hash + Clone + Staticize> Hash for Interned<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.interned_value().hash(state)
     }
 }
 
-impl<T: Hash + Clone + std::fmt::Debug> std::fmt::Debug for Interned<T> {
+impl<T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Interned")
             .field("interned_value", &self.interned_value())
@@ -164,27 +218,26 @@ impl<T: Hash + Clone + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     }
 }
 
-impl<T: Hash + Clone + Display> Display for Interned<T> {
+impl<T: Hash + Clone + Staticize + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.interned_value().fmt(f)
     }
 }
 
-pub struct Memoized<I: Hash, T: Hash + Clone> {
+pub struct Memoized<I: Hash, T: Hash + Clone + Staticize> {
     _input: PhantomData<I>,
     interned: Interned<T>,
 }
 
-impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize> Memoized<I, T> {
     pub fn from<G>(input: &I, generator: G) -> Self
     where
         G: Fn(&I) -> T,
-        T: 'static,
     {
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
-        let type_id = TypeId::of::<T>();
+        let type_id = static_type_id::<T>();
         let generate_value = || -> StaticAlloc { StaticAlloc::from(generator(input)) };
         let entry = MEMOIZED.with(|memoized| {
             match (*memoized)
@@ -215,7 +268,7 @@ impl<I: Hash, T: Hash + Clone> Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Clone> Clone for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize> Clone for Memoized<I, T> {
     fn clone(&self) -> Self {
         Self {
             _input: self._input.clone(),
@@ -224,9 +277,9 @@ impl<I: Hash, T: Hash + Clone> Clone for Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Clone> Copy for Memoized<I, T> {}
+impl<I: Hash, T: Hash + Clone + Staticize> Copy for Memoized<I, T> {}
 
-impl<I: Hash, T: Hash + Clone> Deref for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize> Deref for Memoized<I, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -234,33 +287,33 @@ impl<I: Hash, T: Hash + Clone> Deref for Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Clone + PartialEq> PartialEq for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + PartialEq + Staticize> PartialEq for Memoized<I, T> {
     fn eq(&self, other: &Self) -> bool {
         self.interned_value() == other.interned_value()
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Eq> Eq for Memoized<I, T> {}
+impl<I: Hash, T: Hash + Clone + Eq + Staticize> Eq for Memoized<I, T> {}
 
-impl<I: Hash, T: Hash + Clone + PartialOrd> PartialOrd for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + PartialOrd + Staticize> PartialOrd for Memoized<I, T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.interned_value().partial_cmp(other.interned_value())
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Ord> Ord for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Ord + Staticize> Ord for Memoized<I, T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.interned_value().cmp(other.interned_value())
     }
 }
 
-impl<I: Hash, T: Hash + Clone> Hash for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize> Hash for Memoized<I, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.interned_value().hash(state)
     }
 }
 
-impl<I: Hash, T: Hash + Clone + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Memoized")
             .field("interned_value", &self.interned_value())
@@ -268,7 +321,7 @@ impl<I: Hash, T: Hash + Clone + std::fmt::Debug> std::fmt::Debug for Memoized<I,
     }
 }
 
-impl<I: Hash, T: Hash + Clone + Display> Display for Memoized<I, T> {
+impl<I: Hash, T: Hash + Clone + Staticize + Display> Display for Memoized<I, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.interned_value().fmt(f)
     }
@@ -290,25 +343,15 @@ fn test_static_alloc() {
 }
 
 #[cfg(test)]
-fn num_memoized<T: 'static>() -> usize {
-    MEMOIZED.with(|interned| {
-        interned
-            .borrow_mut()
-            .entry(TypeId::of::<T>())
-            .or_default()
-            .len()
-    })
+fn num_memoized<T: Staticize>() -> usize {
+    let type_id = static_type_id::<T>();
+    MEMOIZED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
 #[cfg(test)]
-fn num_interned<T: 'static>() -> usize {
-    INTERNED.with(|interned| {
-        interned
-            .borrow_mut()
-            .entry(TypeId::of::<T>())
-            .or_default()
-            .len()
-    })
+fn num_interned<T: Staticize>() -> usize {
+    let type_id = static_type_id::<T>();
+    INTERNED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
 #[test]
@@ -323,6 +366,10 @@ fn test_interned_basics() {
     assert_eq!(*a.interned_value(), 32);
     assert_eq!(*b.interned_value(), 27);
     assert_eq!(*c.interned_value(), 32);
+    println!(
+        "{}",
+        INTERNED.with(|interned| format!("{:?}", interned.borrow()))
+    );
     assert_eq!(num_interned::<i32>(), initial_interned + 2);
 }
 
@@ -334,6 +381,16 @@ fn test_interned_str_types() {
     assert_ne!(a.interned_value(), b.interned_value());
     assert_eq!(a.interned_value(), &"this is a triumph");
     assert_eq!(b.interned_value(), &"I'm making a note here: huge success");
+    let st = String::from("asdf");
+    let c = Interned::from(st.as_str());
+    let st2 = String::from("asdf");
+    let d = Interned::from(st2.as_str());
+    assert_eq!(c, d);
+    assert_ne!(c, b);
+    let st3 = String::from("nope nope");
+    let e = Interned::from(st3.as_str());
+    assert_ne!(d, e);
+    assert_eq!(c.interned_value().as_ptr(), d.interned_value().as_ptr());
 }
 
 #[test]
@@ -355,16 +412,16 @@ fn test_memoized_basic() {
     assert_eq!(*a.interned_value(), 10);
     assert_eq!(*b.interned_value(), 5);
     assert_eq!(*c.interned_value(), 10);
-    assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
     assert_eq!(num_interned::<usize>(), initial_interned + 2);
+    assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
 }
 
 #[test]
 fn test_interned_byte_arrays() {
-    let a = Interned::from(&[1u8, 2u8, 3u8]);
-    let b = Interned::from(&[5u8, 4u8, 3u8, 2u8, 1u8]);
+    let a = Interned::from([1u8, 2u8, 3u8].as_slice());
+    let b = Interned::from([5u8, 4u8, 3u8, 2u8, 1u8].as_slice());
     assert_ne!(a.interned_value().as_ptr(), b.interned_value().as_ptr());
-    let c = Interned::from(&[1u8, 2u8, 3u8]);
+    let c = Interned::from([1u8, 2u8, 3u8].as_slice());
     assert_eq!(a.interned_value().as_ptr(), c.interned_value().as_ptr());
     assert_eq!(a.interned_value(), c.interned_value());
     assert_eq!(a, c);

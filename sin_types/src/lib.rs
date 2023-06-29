@@ -1,6 +1,5 @@
-mod memoized;
-pub use memoized::*;
 mod interned_cache;
+pub mod memoized;
 pub use interned_cache::*;
 mod interned_bytes;
 pub use interned_bytes::*;
