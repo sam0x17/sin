@@ -222,21 +222,11 @@ impl BuildHasher for TypeIdHasherBuilder {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
-
-impl<T: Hash + Clone> Clone for Interned<T> {
-    fn clone(&self) -> Self {
-        Self {
-            _value: self._value.clone(),
-            value: self.value.clone(),
-        }
-    }
-}
-
-impl<T: Hash + Clone> Copy for Interned<T> {}
 
 impl<T: Hash + Staticize> Interned<T> {
     pub fn from(value: T) -> Self {
@@ -335,6 +325,7 @@ impl<T: Hash + Staticize + Display> Display for Interned<T> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Memoized<I: Hash, T: Hash + Staticize> {
     _input: PhantomData<I>,
     interned: Interned<T>,
@@ -379,17 +370,6 @@ impl<I: Hash, T: Hash + Staticize> Memoized<I, T> {
         }
     }
 }
-
-impl<I: Hash, T: Hash + Clone + Staticize> Clone for Memoized<I, T> {
-    fn clone(&self) -> Self {
-        Self {
-            _input: self._input.clone(),
-            interned: self.interned.clone(),
-        }
-    }
-}
-
-impl<I: Hash, T: Hash + Clone + Staticize> Copy for Memoized<I, T> {}
 
 impl<I: Hash, T: Hash + Staticize> Deref for Memoized<I, T> {
     type Target = T;
