@@ -12,6 +12,68 @@ use std::{
     ops::Deref,
 };
 
+thread_local! {
+    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+}
+
+pub fn static_type_id<T>() -> TypeId
+where
+    T: Staticize,
+{
+    TypeId::of::<T::Static>()
+}
+
+pub trait Staticize {
+    type Static: 'static;
+}
+
+impl<'a, T> Staticize for &'a T
+where
+    T: Staticize,
+{
+    type Static = &'static T::Static;
+}
+
+#[macro_export]
+macro_rules! derive_staticize {
+    ($typ:ty) => {
+        impl $crate::memoized::Staticize for $typ {
+            type Static = &'static $typ;
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! derive_staticize_slice {
+    (&$typ:ty) => {
+        impl $crate::memoized::Staticize for &$typ {
+            type Static = &'static $typ;
+        }
+    };
+}
+
+derive_staticize_slice!(&str);
+derive_staticize_slice!(&[u8]);
+derive_staticize_slice!(&[char]);
+
+derive_staticize!(bool);
+derive_staticize!(str);
+derive_staticize!(String);
+derive_staticize!(usize);
+derive_staticize!(u8);
+derive_staticize!(u16);
+derive_staticize!(u32);
+derive_staticize!(u64);
+derive_staticize!(u128);
+derive_staticize!(i8);
+derive_staticize!(i16);
+derive_staticize!(i32);
+derive_staticize!(i64);
+derive_staticize!(i128);
+derive_staticize!(f32);
+derive_staticize!(f64);
+
 #[derive(Copy, Clone)]
 struct StaticAlloc {
     ptr: *const (),
@@ -160,11 +222,6 @@ impl BuildHasher for TypeIdHasherBuilder {
     }
 }
 
-thread_local! {
-    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
-    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
-}
-
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
     value: StaticAlloc,
@@ -180,65 +237,6 @@ impl<T: Hash + Clone> Clone for Interned<T> {
 }
 
 impl<T: Hash + Clone> Copy for Interned<T> {}
-
-pub fn static_type_id<T>() -> TypeId
-where
-    T: Staticize,
-{
-    TypeId::of::<T::Static>()
-}
-
-pub trait Staticize {
-    type Static: 'static;
-}
-
-impl<'a, T> Staticize for &'a T
-where
-    T: Staticize,
-{
-    type Static = &'static T::Static;
-}
-
-#[macro_export]
-macro_rules! derive_staticize {
-    ($typ:ty) => {
-        impl $crate::memoized::Staticize for $typ {
-            type Static = &'static $typ;
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! derive_staticize_slice {
-    (&$typ:ty) => {
-        impl $crate::memoized::Staticize for &$typ {
-            type Static = &'static $typ;
-        }
-    };
-}
-
-derive_staticize_slice!(&str);
-derive_staticize_slice!(&[u8]);
-derive_staticize_slice!(&[char]);
-
-derive_staticize!([u8]);
-
-derive_staticize!(bool);
-derive_staticize!(str);
-derive_staticize!(String);
-derive_staticize!(usize);
-derive_staticize!(u8);
-derive_staticize!(u16);
-derive_staticize!(u32);
-derive_staticize!(u64);
-derive_staticize!(u128);
-derive_staticize!(i8);
-derive_staticize!(i16);
-derive_staticize!(i32);
-derive_staticize!(i64);
-derive_staticize!(i128);
-derive_staticize!(f32);
-derive_staticize!(f64);
 
 impl<T: Hash + Staticize> Interned<T> {
     pub fn from(value: T) -> Self {
