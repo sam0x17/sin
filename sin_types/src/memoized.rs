@@ -1,4 +1,5 @@
 use std::{
+    alloc::Layout,
     any::TypeId,
     cell::RefCell,
     collections::{
@@ -9,11 +10,9 @@ use std::{
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
-    slice::SliceIndex,
 };
 
-/// implementation detail
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 struct StaticAlloc {
     ptr: *const (),
     hash: u64,
@@ -41,9 +40,96 @@ impl PartialEq for StaticAlloc {
 
 impl Eq for StaticAlloc {}
 
+impl Hash for StaticAlloc {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialOrd for StaticAlloc {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hash.partial_cmp(&other.hash)
+    }
+}
+
+impl Ord for StaticAlloc {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+unsafe impl Send for StaticAlloc {}
+unsafe impl Sync for StaticAlloc {}
+
 impl std::fmt::Debug for StaticAlloc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticAlloc")
+            .field("hash", &self.hash)
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone)]
+struct StaticSlice {
+    ptr: *const (),
+    len: usize,
+    hash: u64,
+}
+
+impl StaticSlice {
+    pub const unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
+        std::slice::from_raw_parts(self.ptr as *const T, self.len)
+    }
+
+    pub fn from<T: Hash + Copy + Clone + PartialEq + Eq + PartialOrd + Ord + Send + Sync>(
+        slice: &[T],
+    ) -> Self {
+        let mut hasher = DefaultHasher::default();
+        slice.hash(&mut hasher);
+        let hash = hasher.finish();
+        let ptr = unsafe {
+            let ptr = std::alloc::alloc(Layout::array::<T>(slice.len()).unwrap()) as *mut T;
+            std::ptr::copy(slice.as_ptr(), ptr, slice.len());
+            ptr
+        };
+        let ptr = (ptr as *const T) as *const ();
+        let len = slice.len();
+        StaticSlice { ptr, len, hash }
+    }
+}
+
+impl Hash for StaticSlice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for StaticSlice {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for StaticSlice {}
+
+impl PartialOrd for StaticSlice {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hash.partial_cmp(&other.hash)
+    }
+}
+
+impl Ord for StaticSlice {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+unsafe impl Send for StaticSlice {}
+unsafe impl Sync for StaticSlice {}
+
+impl std::fmt::Debug for StaticSlice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SliceAlloc")
             .field("hash", &self.hash)
             .finish()
     }
@@ -79,7 +165,7 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-pub struct Interned<T: Hash + ?Sized> {
+pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
     value: StaticAlloc,
 }
@@ -251,7 +337,7 @@ impl<T: Hash + Staticize + Display> Display for Interned<T> {
     }
 }
 
-pub struct Memoized<I: Hash, T: Hash + Staticize + ?Sized> {
+pub struct Memoized<I: Hash, T: Hash + Staticize> {
     _input: PhantomData<I>,
     interned: Interned<T>,
 }
@@ -453,4 +539,22 @@ fn test_interned_byte_arrays() {
     assert_eq!(a.interned_value().as_ptr(), c.interned_value().as_ptr());
     assert_eq!(a.interned_value(), c.interned_value());
     assert_eq!(a, c);
+}
+
+#[test]
+fn test_static_slice_lifetimes() {
+    let slice = &mut [1, 2, 3, 4, 5];
+    let a = StaticSlice::from(slice);
+    assert_eq!(unsafe { a.as_slice::<i32>() }, &[1, 2, 3, 4, 5]);
+    slice[1] = 7;
+    assert_eq!(unsafe { a.as_slice::<i32>() }, [1, 2, 3, 4, 5]);
+    let b = StaticSlice::from(&[1, 2, 3, 4, 5]);
+    assert_eq!(a, b);
+    let c = StaticSlice::from(&[true, false, true, false, true, false]);
+    assert_ne!(a, c);
+    assert_ne!(b, c);
+    assert_eq!(
+        unsafe { c.as_slice::<bool>() },
+        &[true, false, true, false, true, false]
+    );
 }
