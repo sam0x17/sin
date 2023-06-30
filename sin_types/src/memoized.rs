@@ -13,8 +13,8 @@ use std::{
 };
 
 thread_local! {
-    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
-    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticAlloc>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticValue>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticValue>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
 pub fn static_type_id<T>() -> TypeId
@@ -75,12 +75,12 @@ derive_staticize!(f32);
 derive_staticize!(f64);
 
 #[derive(Copy, Clone)]
-struct StaticAlloc {
+struct StaticValue {
     ptr: *const (),
     hash: u64,
 }
 
-impl StaticAlloc {
+impl StaticValue {
     pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
         &*(self.ptr as *const T)
     }
@@ -90,40 +90,40 @@ impl StaticAlloc {
         value.hash(&mut hasher);
         let hash = hasher.finish();
         let ptr = (Box::leak(Box::from(value)) as *const T) as *const ();
-        StaticAlloc { ptr, hash }
+        StaticValue { ptr, hash }
     }
 }
 
-impl PartialEq for StaticAlloc {
+impl PartialEq for StaticValue {
     fn eq(&self, other: &Self) -> bool {
         self.hash == other.hash
     }
 }
 
-impl Eq for StaticAlloc {}
+impl Eq for StaticValue {}
 
-impl Hash for StaticAlloc {
+impl Hash for StaticValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.hash.hash(state);
     }
 }
 
-impl PartialOrd for StaticAlloc {
+impl PartialOrd for StaticValue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.hash.partial_cmp(&other.hash)
     }
 }
 
-impl Ord for StaticAlloc {
+impl Ord for StaticValue {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.hash.cmp(&other.hash)
     }
 }
 
-unsafe impl Send for StaticAlloc {}
-unsafe impl Sync for StaticAlloc {}
+unsafe impl Send for StaticValue {}
+unsafe impl Sync for StaticValue {}
 
-impl std::fmt::Debug for StaticAlloc {
+impl std::fmt::Debug for StaticValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticAlloc")
             .field("hash", &self.hash)
@@ -225,7 +225,7 @@ impl BuildHasher for TypeIdHasherBuilder {
 #[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
-    value: StaticAlloc,
+    value: StaticValue,
 }
 
 impl<T: Hash + Staticize> Interned<T> {
@@ -240,7 +240,7 @@ impl<T: Hash + Staticize> Interned<T> {
                 .entry(type_id)
                 .or_insert_with(|| HashMap::new())
                 .entry(hash)
-                .or_insert_with(|| StaticAlloc::from(value))
+                .or_insert_with(|| StaticValue::from(value))
         });
         Interned {
             _value: PhantomData,
@@ -259,7 +259,7 @@ impl<T: Hash + Staticize> Interned<T> {
                 .entry(type_id)
                 .or_insert_with(|| HashMap::new())
                 .entry(hash)
-                .or_insert_with(|| StaticAlloc::from(slice))
+                .or_insert_with(|| StaticValue::from(slice))
         });
         Interned {
             _value: PhantomData,
@@ -340,7 +340,7 @@ impl<I: Hash, T: Hash + Staticize> Memoized<I, T> {
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
         let type_id = static_type_id::<T>();
-        let generate_value = || -> StaticAlloc { StaticAlloc::from(generator(input)) };
+        let generate_value = || -> StaticValue { StaticValue::from(generator(input)) };
         let entry = MEMOIZED.with(|memoized| {
             match (*memoized)
                 .borrow_mut()
@@ -421,16 +421,16 @@ impl<I: Hash, T: Hash + Staticize + Display> Display for Memoized<I, T> {
 
 #[test]
 fn test_static_alloc() {
-    let a = StaticAlloc::from(37);
+    let a = StaticValue::from(37);
     assert_eq!(unsafe { *a.as_ref::<i32>() }, 37);
-    let b = StaticAlloc::from(37);
+    let b = StaticValue::from(37);
     assert_eq!(a, b); // note: we base equality off of the hash, not the address
-    let c = StaticAlloc::from(8348783947u64);
+    let c = StaticValue::from(8348783947u64);
     assert_ne!(b, c);
     assert_eq!(unsafe { *c.as_ref::<u64>() }, 8348783947u64);
-    let d = StaticAlloc::from(String::from("test"));
+    let d = StaticValue::from(String::from("test"));
     assert_eq!(unsafe { d.as_ref::<String>() }, &"test");
-    let e = StaticAlloc::from("test");
+    let e = StaticValue::from("test");
     assert_eq!(unsafe { e.as_ref::<&str>() }, &"test");
 }
 
