@@ -53,33 +53,99 @@ macro_rules! derive_staticize_slice {
     };
 }
 
-pub trait IsReference {
-    type Reference;
+pub trait IsSlice {
+    type Slice;
+    type SliceType;
+    type ReferenceType;
+    type ValueType;
+    type SliceValueType;
+    type ReferenceValueType: ?Sized;
+    type InnerType: ?Sized;
+    type DerefType;
+
+    fn as_ref(&self) -> Option<&Self::ReferenceValueType>;
+    fn as_slice(&self) -> Option<&[Self::SliceValueType]>;
+    fn as_value(&self) -> Option<Self::ValueType>;
 }
 
 pub enum True {}
 pub enum False {}
 
-impl<'a, T: Copy> IsReference for &'a T {
-    type Reference = True;
+impl<'a, T: Sized> IsSlice for &'a [T] {
+    type Slice = True;
+    type SliceType = &'a [T];
+    type ReferenceType = Self::SliceType;
+    type ValueType = Self::SliceType;
+    type SliceValueType = T;
+    type ReferenceValueType = [T];
+    type InnerType = T;
+    type DerefType = &'a [T];
+
+    fn as_ref(&self) -> Option<&'a [T]> {
+        Some(*self)
+    }
+
+    fn as_slice(&self) -> Option<&'a [T]> {
+        Some(*self)
+    }
+
+    fn as_value(&self) -> Option<&'a [T]> {
+        Some(*self)
+    }
 }
 
 #[macro_export]
 macro_rules! impl_is_reference {
-    ($typ:ty, True) => {
-        impl $crate::memoized::IsReference for $typ {
-            type Reference = $crate::memoized::True;
-        }
-    };
     ($typ:ty, False) => {
-        impl $crate::memoized::IsReference for $typ {
-            type Reference = $crate::memoized::False;
+        impl IsSlice for $typ {
+            type Slice = False;
+            type SliceType = ();
+            type ReferenceType = ();
+            type ValueType = $typ;
+            type SliceValueType = ();
+            type ReferenceValueType = ();
+            type InnerType = $typ;
+            type DerefType = $typ;
+
+            fn as_ref(&self) -> Option<&'static Self::ReferenceType> {
+                None
+            }
+
+            fn as_slice(&self) -> Option<&'static [Self::SliceType]> {
+                None
+            }
+
+            fn as_value(&self) -> Option<Self::ValueType> {
+                Some(self.clone())
+            }
         }
     };
 }
 
+impl<'a> IsSlice for &'a str {
+    type Slice = True;
+    type SliceType = &'a str;
+    type ReferenceType = &'a str;
+    type ValueType = &'a str;
+    type SliceValueType = ();
+    type ReferenceValueType = str;
+    type InnerType = str;
+    type DerefType = &'a str;
+
+    fn as_ref(&self) -> Option<&'a str> {
+        Some(*self)
+    }
+
+    fn as_slice(&self) -> Option<&'static [()]> {
+        None
+    }
+
+    fn as_value(&self) -> Option<&'a str> {
+        Some(*self)
+    }
+}
+
 impl_is_reference!(bool, False);
-impl_is_reference!(str, False);
 impl_is_reference!(String, False);
 impl_is_reference!(usize, False);
 impl_is_reference!(u8, False);
@@ -92,8 +158,6 @@ impl_is_reference!(i16, False);
 impl_is_reference!(i32, False);
 impl_is_reference!(i64, False);
 impl_is_reference!(i128, False);
-impl_is_reference!(f32, False);
-impl_is_reference!(f64, False);
 
 derive_staticize_slice!(&str);
 derive_staticize_slice!(&[u8]);
@@ -300,15 +364,16 @@ pub struct Interned<T: Hash> {
     value: Static,
 }
 
-impl<T: Hash + Copy> From<&[T]> for Interned<T>
+impl<T: Hash + Copy + Staticize + IsSlice<Slice = True>> From<T> for Interned<T>
 where
-    for<'a> &'a [T]: Staticize + IsReference<Reference = True>,
+    <T as IsSlice>::SliceValueType: Copy + Hash,
 {
-    fn from(slice: &[T]) -> Self {
+    fn from(slice: T) -> Self {
         let mut hasher = DefaultHasher::default();
         slice.hash(&mut hasher);
         let hash = hasher.finish();
-        let type_id = static_type_id::<&[T]>();
+        let type_id = static_type_id::<T>();
+        let slice = slice.as_slice().unwrap();
         let entry = INTERNED.with(|interned| {
             *interned
                 .borrow_mut()
@@ -324,7 +389,7 @@ where
     }
 }
 
-impl<T: Hash + Staticize + IsReference<Reference = False>> Interned<T> {
+impl<T: Hash + Staticize + IsSlice<Slice = False>> Interned<T> {
     pub fn from_value(value: T) -> Self {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
