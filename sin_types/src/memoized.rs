@@ -13,8 +13,8 @@ use std::{
 };
 
 thread_local! {
-    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, StaticValue>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
-    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, StaticValue>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+    static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
 pub fn static_type_id<T>() -> TypeId
@@ -52,6 +52,48 @@ macro_rules! derive_staticize_slice {
         }
     };
 }
+
+pub trait IsReference {
+    type Reference;
+}
+
+pub enum True {}
+pub enum False {}
+
+impl<'a, T: Copy> IsReference for &'a T {
+    type Reference = True;
+}
+
+#[macro_export]
+macro_rules! impl_is_reference {
+    ($typ:ty, True) => {
+        impl $crate::memoized::IsReference for $typ {
+            type Reference = $crate::memoized::True;
+        }
+    };
+    ($typ:ty, False) => {
+        impl $crate::memoized::IsReference for $typ {
+            type Reference = $crate::memoized::False;
+        }
+    };
+}
+
+impl_is_reference!(bool, False);
+impl_is_reference!(str, False);
+impl_is_reference!(String, False);
+impl_is_reference!(usize, False);
+impl_is_reference!(u8, False);
+impl_is_reference!(u16, False);
+impl_is_reference!(u32, False);
+impl_is_reference!(u64, False);
+impl_is_reference!(u128, False);
+impl_is_reference!(i8, False);
+impl_is_reference!(i16, False);
+impl_is_reference!(i32, False);
+impl_is_reference!(i64, False);
+impl_is_reference!(i128, False);
+impl_is_reference!(f32, False);
+impl_is_reference!(f64, False);
 
 derive_staticize_slice!(&str);
 derive_staticize_slice!(&[u8]);
@@ -143,9 +185,7 @@ impl StaticSlice {
         std::slice::from_raw_parts(self.ptr as *const T, self.len)
     }
 
-    pub fn from<T: Hash + Copy + Clone + PartialEq + Eq + PartialOrd + Ord + Send + Sync>(
-        slice: &[T],
-    ) -> Self {
+    pub fn from<T: Hash + Copy>(slice: &[T]) -> Self {
         let mut hasher = DefaultHasher::default();
         slice.hash(&mut hasher);
         let hash = hasher.finish();
@@ -197,6 +237,38 @@ impl std::fmt::Debug for StaticSlice {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum Static {
+    Value(StaticValue),
+    Slice(StaticSlice),
+}
+
+impl<T: Hash + Copy> From<&[T]> for Static {
+    fn from(slice: &[T]) -> Self {
+        Static::Slice(StaticSlice::from(slice))
+    }
+}
+
+impl Static {
+    pub fn from_value<T: Hash + Copy>(value: T) -> Static {
+        Static::Value(StaticValue::from(value))
+    }
+
+    pub const unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
+        match self {
+            Static::Value(_) => panic!("not a slice type!"),
+            Static::Slice(static_slice) => static_slice.as_slice(),
+        }
+    }
+
+    pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
+        match self {
+            Static::Value(static_value) => static_value.as_ref(),
+            Static::Slice(_) => panic!("not a value type!"),
+        }
+    }
+}
+
 struct TypeIdHasher {
     hash: Option<u64>,
 }
@@ -225,11 +297,35 @@ impl BuildHasher for TypeIdHasherBuilder {
 #[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
-    value: StaticValue,
+    value: Static,
 }
 
-impl<T: Hash + Staticize> Interned<T> {
-    pub fn from(value: T) -> Self {
+impl<T: Hash + Copy> From<&[T]> for Interned<T>
+where
+    for<'a> &'a [T]: Staticize + IsReference<Reference = True>,
+{
+    fn from(slice: &[T]) -> Self {
+        let mut hasher = DefaultHasher::default();
+        slice.hash(&mut hasher);
+        let hash = hasher.finish();
+        let type_id = static_type_id::<&[T]>();
+        let entry = INTERNED.with(|interned| {
+            *interned
+                .borrow_mut()
+                .entry(type_id)
+                .or_insert_with(|| HashMap::new())
+                .entry(hash)
+                .or_insert_with(|| Static::Slice(StaticSlice::from(slice)))
+        });
+        Interned {
+            _value: PhantomData,
+            value: entry,
+        }
+    }
+}
+
+impl<T: Hash + Staticize + IsReference<Reference = False>> Interned<T> {
+    pub fn from_value(value: T) -> Self {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
@@ -240,26 +336,7 @@ impl<T: Hash + Staticize> Interned<T> {
                 .entry(type_id)
                 .or_insert_with(|| HashMap::new())
                 .entry(hash)
-                .or_insert_with(|| StaticValue::from(value))
-        });
-        Interned {
-            _value: PhantomData,
-            value: entry,
-        }
-    }
-
-    pub fn from_slice<G: Hash>(slice: &[G]) -> Interned<T> {
-        let mut hasher = DefaultHasher::default();
-        slice.hash(&mut hasher);
-        let hash = hasher.finish();
-        let type_id = static_type_id::<T>();
-        let entry = INTERNED.with(|interned| {
-            *interned
-                .borrow_mut()
-                .entry(type_id)
-                .or_insert_with(|| HashMap::new())
-                .entry(hash)
-                .or_insert_with(|| StaticValue::from(slice))
+                .or_insert_with(|| Static::Value(StaticValue::from(value)))
         });
         Interned {
             _value: PhantomData,
