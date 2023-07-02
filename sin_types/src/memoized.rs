@@ -53,8 +53,8 @@ macro_rules! derive_staticize_slice {
     };
 }
 
-pub trait IsSlice {
-    type Slice;
+pub trait DataType {
+    type Type;
     type SliceType;
     type ReferenceType;
     type ValueType;
@@ -68,11 +68,12 @@ pub trait IsSlice {
     fn as_value(&self) -> Option<Self::ValueType>;
 }
 
-pub enum True {}
-pub enum False {}
+pub enum Slice {}
+pub enum Reference {}
+pub enum Value {}
 
-impl<'a, T: Sized> IsSlice for &'a [T] {
-    type Slice = True;
+impl<'a, T: Sized> DataType for &'a [T] {
+    type Type = Slice;
     type SliceType = &'a [T];
     type ReferenceType = Self::SliceType;
     type ValueType = Self::SliceType;
@@ -95,10 +96,10 @@ impl<'a, T: Sized> IsSlice for &'a [T] {
 }
 
 #[macro_export]
-macro_rules! impl_is_reference {
-    ($typ:ty, False) => {
-        impl IsSlice for $typ {
-            type Slice = False;
+macro_rules! impl_data_type {
+    ($typ:ty, Value) => {
+        impl $crate::memoized::DataType for $typ {
+            type Type = $crate::memoized::Value;
             type SliceType = ();
             type ReferenceType = ();
             type ValueType = $typ;
@@ -122,8 +123,8 @@ macro_rules! impl_is_reference {
     };
 }
 
-impl<'a> IsSlice for &'a str {
-    type Slice = True;
+impl<'a> DataType for &'a str {
+    type Type = Reference;
     type SliceType = &'a str;
     type ReferenceType = &'a str;
     type ValueType = &'a str;
@@ -145,19 +146,19 @@ impl<'a> IsSlice for &'a str {
     }
 }
 
-impl_is_reference!(bool, False);
-impl_is_reference!(String, False);
-impl_is_reference!(usize, False);
-impl_is_reference!(u8, False);
-impl_is_reference!(u16, False);
-impl_is_reference!(u32, False);
-impl_is_reference!(u64, False);
-impl_is_reference!(u128, False);
-impl_is_reference!(i8, False);
-impl_is_reference!(i16, False);
-impl_is_reference!(i32, False);
-impl_is_reference!(i64, False);
-impl_is_reference!(i128, False);
+impl_data_type!(bool, Value);
+impl_data_type!(String, Value);
+impl_data_type!(usize, Value);
+impl_data_type!(u8, Value);
+impl_data_type!(u16, Value);
+impl_data_type!(u32, Value);
+impl_data_type!(u64, Value);
+impl_data_type!(u128, Value);
+impl_data_type!(i8, Value);
+impl_data_type!(i16, Value);
+impl_data_type!(i32, Value);
+impl_data_type!(i64, Value);
+impl_data_type!(i128, Value);
 
 derive_staticize_slice!(&str);
 derive_staticize_slice!(&[u8]);
@@ -364,9 +365,9 @@ pub struct Interned<T: Hash> {
     value: Static,
 }
 
-impl<T: Hash + Copy + Staticize + IsSlice<Slice = True>> From<T> for Interned<T>
+impl<T: Hash + Copy + Staticize + DataType<Type = Slice>> From<T> for Interned<T>
 where
-    <T as IsSlice>::SliceValueType: Copy + Hash,
+    <T as DataType>::SliceValueType: Copy + Hash,
 {
     fn from(slice: T) -> Self {
         let mut hasher = DefaultHasher::default();
@@ -389,7 +390,7 @@ where
     }
 }
 
-impl<T: Hash + Staticize + IsSlice<Slice = False>> Interned<T> {
+impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     pub fn from_value(value: T) -> Self {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
@@ -419,11 +420,11 @@ impl<T: Hash + Staticize + IsSlice<Slice = False>> Interned<T> {
     }
 }
 
-impl<T: Hash + Staticize> Deref for Interned<T> {
-    type Target = T;
+impl<T: Hash + Staticize + DataType> Deref for Interned<T> {
+    type Target = <T as DataType>::DerefType;
 
     fn deref(&self) -> &Self::Target {
-        self.interned_value()
+        self as &Self::Target
     }
 }
 
