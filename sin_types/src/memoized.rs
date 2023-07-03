@@ -64,7 +64,6 @@ pub trait DataType {
     type InnerType: ?Sized;
     type DerefType;
 
-    fn as_ref(&self) -> &Self::ReferenceValueType;
     fn as_slice(&self) -> &[Self::SliceValueType];
     fn as_value(&self) -> Self::ValueType;
     fn to_static(&self) -> Static;
@@ -83,10 +82,6 @@ impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type ReferenceValueType = [T];
     type InnerType = T;
     type DerefType = &'a [T];
-
-    fn as_ref(&self) -> &'a [T] {
-        *self
-    }
 
     fn as_slice(&self) -> &'a [T] {
         *self
@@ -114,10 +109,6 @@ macro_rules! impl_data_type {
             type InnerType = $typ;
             type DerefType = $typ;
 
-            fn as_ref(&self) -> &'static Self::ReferenceType {
-                panic!("not a reference!");
-            }
-
             fn as_slice(&self) -> &'static [Self::SliceType] {
                 panic!("not a slice!");
             }
@@ -143,12 +134,8 @@ impl<'a> DataType for &'a str {
     type InnerType = str;
     type DerefType = &'a str;
 
-    fn as_ref(&self) -> &'a str {
-        *self
-    }
-
     fn as_slice(&self) -> &'static [()] {
-        panic!("not a slice!");
+        panic!("not supported");
     }
 
     fn as_value(&self) -> &'a str {
