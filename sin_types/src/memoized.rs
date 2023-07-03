@@ -645,6 +645,24 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
     }
 }
 
+impl<I: Hash, T: Hash + Staticize + DataType<Type = Slice>> Memoized<I, T> {
+    pub fn as_slice<'a>(&self) -> &'a [T::SliceValueType] {
+        unsafe { self.interned.value.as_slice::<T::SliceValueType>() }
+    }
+}
+
+impl<I: Hash> Memoized<I, &str> {
+    pub fn as_str<'a>(&self) -> &'a str {
+        unsafe { self.interned.value.as_str() }
+    }
+}
+
+impl<I: Hash, T: Hash + Staticize + DataType<Type = Value>> Memoized<I, T> {
+    pub fn as_value<'a>(&self) -> &'a T {
+        unsafe { self.interned.value.as_value() }
+    }
+}
+
 impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T> {
     pub fn from<G>(input: &I, generator: G) -> Memoized<I, T>
     where
@@ -819,22 +837,23 @@ fn test_interned_deref() {
     assert_eq!(c.interned_str().chars().next().unwrap(), 'f');
 }
 
-// #[test]
-// fn test_memoized_basic() {
-//     let initial_interned = num_interned::<i32>();
-//     let initial_memoized = num_memoized::<i32>();
-//     let a = Memoized::from(&"some_input", |input| input.len());
-//     let b = Memoized::from(&"other", |input| input.len());
-//     assert_ne!(a, b);
-//     let c = Memoized::from(&"some_input", |input| input.len());
-//     assert_eq!(a, c);
-//     assert_ne!(b, c);
-//     assert_eq!(*a.interned_value(), 10);
-//     assert_eq!(*b.interned_value(), 5);
-//     assert_eq!(*c.interned_value(), 10);
-//     assert_eq!(num_interned::<i32>(), initial_interned + 2);
-//     assert_eq!(num_memoized::<i32>(), initial_memoized + 2);
-// }
+#[test]
+fn test_memoized_basic() {
+    let initial_interned = num_interned::<usize>();
+    let initial_memoized = num_memoized::<usize>();
+    let a = Memoized::from(&"some_input", |input| input.len());
+    let b = Memoized::from(&"other", |input| input.len());
+    assert_ne!(a, b);
+    let c = Memoized::from(&"some_input", |input| input.len());
+    assert_eq!(a, c);
+    assert_ne!(b, c);
+    assert_eq!(a.as_value(), &10);
+    assert_ne!(*a.as_value(), 11);
+    assert_eq!(*b.interned().interned_value(), 5);
+    assert_eq!(*c.as_value(), 10);
+    // assert_eq!(num_interned::<usize>(), initial_interned + 2);
+    assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
+}
 
 #[test]
 fn test_interned_byte_arrays() {
