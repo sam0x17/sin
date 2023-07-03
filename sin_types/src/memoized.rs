@@ -17,11 +17,12 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-pub fn static_type_id<T>() -> TypeId
-where
-    T: Staticize,
-{
+pub fn static_type_id<T: Staticize>() -> TypeId {
     TypeId::of::<T::Static>()
+}
+
+pub fn static_type_name<T: Staticize>() -> &'static str {
+    &std::any::type_name::<T::Static>()
 }
 
 pub trait Staticize {
@@ -155,7 +156,7 @@ impl<'a> DataType for &'a str {
     }
 
     fn to_static(&self) -> Static {
-        todo!()
+        Static::from_str(self)
     }
 }
 
@@ -245,7 +246,7 @@ unsafe impl Sync for StaticValue {}
 
 impl std::fmt::Debug for StaticValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("StaticAlloc")
+        f.debug_struct("StaticValue")
             .field("hash", &self.hash)
             .finish()
     }
@@ -259,7 +260,7 @@ pub struct StaticSlice {
 }
 
 impl StaticSlice {
-    pub const unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
+    pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
         std::slice::from_raw_parts(self.ptr as *const T, self.len)
     }
 
@@ -309,7 +310,66 @@ unsafe impl Sync for StaticSlice {}
 
 impl std::fmt::Debug for StaticSlice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SliceAlloc")
+        f.debug_struct("StaticSlice")
+            .field("hash", &self.hash)
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct StaticStr {
+    ptr: *const str,
+    hash: u64,
+}
+
+impl StaticStr {
+    pub const unsafe fn as_str<'a>(&self) -> &'a str {
+        &*(self.ptr as *const str)
+    }
+
+    pub fn from(value: &str) -> Self {
+        let mut hasher = DefaultHasher::default();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        let ptr = Box::leak(Box::from(value)) as *const str;
+        let written_value = unsafe { (ptr as *const str).as_ref().unwrap() };
+        assert_eq!(written_value, value);
+        StaticStr { ptr, hash }
+    }
+}
+
+impl Hash for StaticStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for StaticStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for StaticStr {}
+
+impl PartialOrd for StaticStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hash.partial_cmp(&other.hash)
+    }
+}
+
+impl Ord for StaticStr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+unsafe impl Send for StaticStr {}
+unsafe impl Sync for StaticStr {}
+
+impl std::fmt::Debug for StaticStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticStr")
             .field("hash", &self.hash)
             .finish()
     }
@@ -319,6 +379,7 @@ impl std::fmt::Debug for StaticSlice {
 pub enum Static {
     Value(StaticValue),
     Slice(StaticSlice),
+    Str(StaticStr),
 }
 
 impl<T: Hash + Copy> From<&[T]> for Static {
@@ -328,21 +389,88 @@ impl<T: Hash + Copy> From<&[T]> for Static {
 }
 
 impl Static {
+    pub fn hash_code(&self) -> u64 {
+        match self {
+            Static::Value(value) => value.hash,
+            Static::Slice(slice) => slice.hash,
+            Static::Str(string) => string.hash,
+        }
+    }
+
     pub fn from_value<T: Hash>(value: T) -> Static {
         Static::Value(StaticValue::from(value))
     }
 
-    pub const unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
+    pub fn from_str(value: &str) -> Static {
+        Static::Str(StaticStr::from(value))
+    }
+
+    pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
         match self {
-            Static::Value(_) => panic!("not a slice type!"),
-            Static::Slice(static_slice) => static_slice.as_slice(),
+            Static::Slice(static_slice) => static_slice.as_slice::<T>(),
+            _ => panic!("not a slice type!"),
         }
     }
 
-    pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
+    pub unsafe fn as_ref<'a, T>(&self) -> &'a T {
         match self {
-            Static::Value(static_value) => static_value.as_ref(),
-            Static::Slice(_) => panic!("not a value type!"),
+            Static::Value(static_value) => static_value.as_ref::<T>(),
+            _ => panic!("not a value type!"),
+        }
+    }
+
+    pub unsafe fn as_str<'a>(&self) -> &'a str {
+        match self {
+            Static::Str(static_str) => static_str.as_str(),
+            _ => panic!("not a &str!"),
+        }
+    }
+
+    pub unsafe fn _partial_eq<T: PartialEq + DataType>(&self, other: &Static) -> bool
+    where
+        T::SliceValueType: PartialEq,
+    {
+        match (self, other) {
+            (Static::Value(a), Static::Value(b)) => *a.as_ref::<T>() == *b.as_ref::<T>(),
+            (Static::Slice(a), Static::Slice(b)) => {
+                a.as_slice::<T::SliceValueType>() == b.as_slice::<T::SliceValueType>()
+            }
+            (Static::Str(a), Static::Str(b)) => a.as_str() == b.as_str(),
+            _ => false,
+        }
+    }
+
+    pub unsafe fn _partial_cmp<T: PartialOrd + Staticize>(
+        &self,
+        other: &Self,
+    ) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Static::Value(a), Static::Value(b)) => a.as_ref::<T>().partial_cmp(b.as_ref::<T>()),
+            (Static::Slice(a), Static::Slice(b)) => {
+                a.as_slice::<T>().partial_cmp(b.as_slice::<T>())
+            }
+            (Static::Str(a), Static::Str(b)) => a.as_str().partial_cmp(b.as_str()),
+            _ => (static_type_id::<T>(), self.hash_code())
+                .partial_cmp(&(static_type_id::<T>(), other.hash_code())),
+        }
+    }
+
+    pub unsafe fn _cmp<T: Ord + Staticize>(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Static::Value(a), Static::Value(b)) => a.as_ref::<T>().cmp(b.as_ref::<T>()),
+            (Static::Slice(a), Static::Slice(b)) => a.as_slice::<T>().cmp(b.as_slice::<T>()),
+            (Static::Str(a), Static::Str(b)) => a.as_str().cmp(b.as_str()),
+            _ => (static_type_id::<T>(), self.hash_code())
+                .cmp(&(static_type_id::<T>(), other.hash_code())),
+        }
+    }
+
+    pub unsafe fn _hash<T: Hash + Staticize, H: Hasher>(&self, state: &mut H) {
+        let type_id = static_type_id::<T>();
+        match self {
+            Static::Value(value) => (type_id, value).hash(state),
+            Static::Slice(slice) => (type_id, slice).hash(state),
+            Static::Str(string) => (type_id, string).hash(state),
         }
     }
 }
@@ -399,63 +527,90 @@ impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T> {
     }
 }
 
-impl<T: Hash + Staticize + DataType> Interned<T> {
+impl<T: Hash + Staticize + DataType<Type = Slice>> Interned<T> {
+    pub fn interned_slice<'a>(&self) -> &'a [T::SliceValueType] {
+        unsafe { self.value.as_slice::<T::SliceValueType>() }
+    }
+}
+
+impl Interned<&str> {
+    pub fn interned_str<'a>(&self) -> &'a str {
+        unsafe { self.value.as_str() }
+    }
+}
+
+impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     pub fn interned_value<'a>(&self) -> &'a T {
         unsafe { self.value.as_ref() }
     }
-
-    pub fn interned_value_copy(&self) -> T {
-        let copy: T = unsafe { std::mem::transmute_copy(self.interned_value()) };
-        copy
-    }
 }
 
-impl<T: Hash + Staticize + DataType<DerefType = T>> Deref for Interned<T> {
-    type Target = <T as DataType>::DerefType;
+impl<T: Hash + Staticize + DataType<Type = Slice>> Deref for Interned<T> {
+    type Target = [T::SliceValueType];
 
     fn deref(&self) -> &Self::Target {
-        self.interned_value()
-        //& (self.interned_value_copy() as <T as DataType>::DerefType)
+        match self.value {
+            Static::Slice(static_slice) => unsafe { static_slice.as_slice() },
+            _ => unreachable!(),
+        }
     }
 }
 
-impl<T: Hash + PartialEq + Staticize + DataType> PartialEq for Interned<T> {
+impl<T: Hash + PartialEq + Staticize + DataType> PartialEq for Interned<T>
+where
+    T::SliceValueType: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
-        self.interned_value() == other.interned_value()
+        unsafe { self.value._partial_eq::<T>(&other.value) }
     }
 }
 
-impl<T: Hash + Staticize + Eq + DataType> Eq for Interned<T> {}
+impl<T: Hash + Staticize + Eq + DataType> Eq for Interned<T> where T::SliceValueType: PartialEq {}
 
-impl<T: Hash + Staticize + PartialOrd + DataType> PartialOrd for Interned<T> {
+impl<T: Hash + Staticize + PartialOrd + DataType> PartialOrd for Interned<T>
+where
+    T::SliceValueType: PartialEq,
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.interned_value().partial_cmp(other.interned_value())
+        unsafe { self.value._partial_cmp::<T>(&other.value) }
     }
 }
 
-impl<T: Hash + Staticize + Ord + DataType> Ord for Interned<T> {
+impl<T: Hash + Staticize + Ord + DataType> Ord for Interned<T>
+where
+    T::SliceValueType: PartialEq,
+{
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.interned_value().cmp(other.interned_value())
+        unsafe { self.value._cmp::<T>(&other.value) }
     }
 }
 
 impl<T: Hash + Staticize + DataType> Hash for Interned<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.interned_value().hash(state)
+        unsafe { self.value._hash::<T, H>(state) }
     }
 }
 
 impl<T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Interned")
-            .field("interned_value", &self.interned_value())
-            .finish()
+        let mut f = f.debug_struct(format!("Interned<{}>", static_type_name::<T>()).as_str());
+        match self.value {
+            Static::Value(value) => f.field("value", unsafe { value.as_ref::<T>() }),
+            Static::Slice(slice) => f.field("slice", unsafe { &slice.as_slice::<T>() }),
+            Static::Str(string) => f.field("str", unsafe { &string.as_str() }),
+        }
+        .finish()
     }
 }
 
 impl<T: Hash + Staticize + DataType + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.interned_value().fmt(f)
+        use std::fmt::Pointer;
+        match self.value {
+            Static::Value(value) => unsafe { value.as_ref::<T>().fmt(f) },
+            Static::Slice(slice) => unsafe { slice.as_slice::<T>().fmt(f) },
+            Static::Str(string) => unsafe { string.as_str().fmt(f) },
+        }
     }
 }
 
@@ -492,10 +647,6 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
         }
     }
 
-    pub fn interned_value(&self) -> &T {
-        self.interned.interned_value()
-    }
-
     pub fn interned(&self) -> Interned<T> {
         Interned {
             _value: PhantomData,
@@ -504,53 +655,53 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Staticize + DataType> Deref for Memoized<I, T> {
-    type Target = T;
+// impl<I: Hash, T: Hash + Staticize + DataType> Deref for Memoized<I, T> {
+//     type Target = T;
 
-    fn deref(&self) -> &Self::Target {
-        self.interned_value()
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         self.interned_value()
+//     }
+// }
 
-impl<I: Hash, T: Hash + PartialEq + Staticize + DataType> PartialEq for Memoized<I, T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.interned_value() == other.interned_value()
-    }
-}
+// impl<I: Hash, T: Hash + PartialEq + Staticize + DataType> PartialEq for Memoized<I, T> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.interned_value() == other.interned_value()
+//     }
+// }
 
-impl<I: Hash, T: Hash + Eq + Staticize + DataType> Eq for Memoized<I, T> {}
+// impl<I: Hash, T: Hash + Eq + Staticize + DataType> Eq for Memoized<I, T> {}
 
-impl<I: Hash, T: Hash + PartialOrd + Staticize + DataType> PartialOrd for Memoized<I, T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.interned_value().partial_cmp(other.interned_value())
-    }
-}
+// impl<I: Hash, T: Hash + PartialOrd + Staticize + DataType> PartialOrd for Memoized<I, T> {
+//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+//         self.interned_value().partial_cmp(other.interned_value())
+//     }
+// }
 
-impl<I: Hash, T: Hash + Ord + Staticize + DataType> Ord for Memoized<I, T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.interned_value().cmp(other.interned_value())
-    }
-}
+// impl<I: Hash, T: Hash + Ord + Staticize + DataType> Ord for Memoized<I, T> {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         self.interned_value().cmp(other.interned_value())
+//     }
+// }
 
-impl<I: Hash, T: Hash + Staticize + DataType> Hash for Memoized<I, T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.interned_value().hash(state)
-    }
-}
+// impl<I: Hash, T: Hash + Staticize + DataType> Hash for Memoized<I, T> {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self.interned_value().hash(state)
+//     }
+// }
 
-impl<I: Hash, T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Memoized")
-            .field("interned_value", &self.interned_value())
-            .finish()
-    }
-}
+// impl<I: Hash, T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("Memoized")
+//             .field("interned_value", &self.interned_value())
+//             .finish()
+//     }
+// }
 
-impl<I: Hash, T: Hash + Staticize + DataType + Display> Display for Memoized<I, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.interned_value().fmt(f)
-    }
-}
+// impl<I: Hash, T: Hash + Staticize + DataType + Display> Display for Memoized<I, T> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         self.interned_value().fmt(f)
+//     }
+// }
 
 #[test]
 fn test_static_alloc() {
@@ -591,21 +742,21 @@ fn test_interned_basics() {
     assert_eq!(*a.interned_value(), 32);
     assert_eq!(*b.interned_value(), 27);
     assert_eq!(*c.interned_value(), 32);
-    println!(
-        "{}",
-        INTERNED.with(|interned| format!("{:?}", interned.borrow()))
-    );
+    // println!(
+    //     "{}",
+    //     INTERNED.with(|interned| format!("{:?}", interned.borrow()))
+    // );
     assert_eq!(num_interned::<i32>(), initial_interned + 2);
 }
 
 #[test]
 fn test_interned_str_types() {
-    let a = Interned::from("this is a triumph");
-    let b = Interned::from("I'm making a note here: huge success");
+    let a: Interned<&str> = Interned::from("this is a triumph");
+    let b: Interned<&str> = Interned::from("I'm making a note here: huge success");
     assert_ne!(a, b);
-    assert_ne!(a.interned_value(), b.interned_value());
-    assert_eq!(a.interned_value(), &"this is a triumph");
-    assert_eq!(b.interned_value(), &"I'm making a note here: huge success");
+    assert_ne!(a.interned_str(), b.interned_str());
+    assert_eq!(a.interned_str(), "this is a triumph");
+    assert_eq!(b.interned_str(), "I'm making a note here: huge success");
     let st = String::from("asdf");
     let c = Interned::from(st.as_str());
     let st2 = String::from("asdf");
@@ -615,15 +766,17 @@ fn test_interned_str_types() {
     let st3 = String::from("nope nope");
     let e = Interned::from(st3.as_str());
     assert_ne!(d, e);
-    assert_eq!(c.interned_value().as_ptr(), d.interned_value().as_ptr());
+    assert_eq!(c.interned_str().as_ptr(), d.interned_str().as_ptr());
 }
 
 #[test]
 fn test_interned_deref() {
     let a: Interned<i32> = Interned::from(-99);
-    assert_eq!(a.abs(), 99);
-    //let c = Interned::from("for the good of all of us except the ones who are dead");
-    //assert_eq!(c.chars().next().unwrap(), 'f');
+    assert_eq!(a.interned_value().abs(), 99);
+    let b = Interned::from([5, 6, 7].as_slice());
+    assert_eq!(b.len(), 3);
+    let c = Interned::from("for the good of all of us except the ones who are dead");
+    assert_eq!(c.interned_str().chars().next().unwrap(), 'f');
 }
 
 // #[test]
@@ -645,13 +798,16 @@ fn test_interned_deref() {
 
 #[test]
 fn test_interned_byte_arrays() {
-    let a = Interned::from([1u8, 2u8, 3u8].as_slice());
+    let a: Interned<&[u8]> = Interned::from([1u8, 2u8, 3u8].as_slice());
     let b = Interned::from([5u8, 4u8, 3u8, 2u8, 1u8].as_slice());
-    assert_ne!(a.interned_value().as_ptr(), b.interned_value().as_ptr());
+    assert_ne!(a.interned_slice().as_ptr(), b.interned_slice().as_ptr());
     let c = Interned::from([1u8, 2u8, 3u8].as_slice());
-    assert_eq!(a.interned_value().as_ptr(), c.interned_value().as_ptr());
-    assert_eq!(a.interned_value(), c.interned_value());
+    assert_eq!(a.interned_slice().as_ptr(), c.interned_slice().as_ptr());
+    assert_eq!(a.interned_slice(), c.interned_slice());
     assert_eq!(a, c);
+    assert_eq!(c, a);
+    assert_ne!(a, b);
+    assert_ne!(b, a);
 }
 
 #[test]
