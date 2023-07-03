@@ -585,13 +585,13 @@ where
     }
 }
 
-impl<T: Hash + Staticize + DataType> Hash for Interned<T> {
+impl<T: Hash + Staticize> Hash for Interned<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         unsafe { self.value._hash::<T, H>(state) }
     }
 }
 
-impl<T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Interned<T> {
+impl<T: Hash + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f = f.debug_struct(format!("Interned<{}>", static_type_name::<T>()).as_str());
         match self.value {
@@ -603,7 +603,7 @@ impl<T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Inter
     }
 }
 
-impl<T: Hash + Staticize + DataType + Display> Display for Interned<T> {
+impl<T: Hash + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Pointer;
         match self.value {
