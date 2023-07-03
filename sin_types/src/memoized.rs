@@ -507,6 +507,24 @@ pub struct Interned<T: Hash> {
     value: Static,
 }
 
+impl<T: Hash + Copy + Staticize + DataType> From<Static> for Interned<T> {
+    fn from(value: Static) -> Self {
+        let type_id = static_type_id::<T>();
+        let entry = INTERNED.with(|interned| {
+            *interned
+                .borrow_mut()
+                .entry(type_id)
+                .or_insert_with(|| HashMap::new())
+                .entry(value.hash_code())
+                .or_insert(value)
+        });
+        Interned {
+            _value: PhantomData,
+            value: entry,
+        }
+    }
+}
+
 impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T::Static>
 where
     <T as Staticize>::Static: Hash + Sized,
@@ -629,13 +647,6 @@ pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     interned: Interned<T>,
 }
 
-/*
-impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T::Static>
-where
-    <T as Staticize>::Static: Hash + Sized,
-{
- */
-
 impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
     pub fn interned(&self) -> Interned<T> {
         Interned {
@@ -663,7 +674,10 @@ impl<I: Hash, T: Hash + Staticize + DataType<Type = Value>> Memoized<I, T> {
     }
 }
 
-impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T> {
+impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
+where
+    T::Static: Hash + Copy + Clone + DataType,
+{
     pub fn from<G>(input: &I, generator: G) -> Memoized<I, T>
     where
         G: Fn(&I) -> T,
@@ -685,10 +699,7 @@ impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T> {
         });
         Memoized {
             _input: PhantomData,
-            interned: Interned {
-                _value: PhantomData,
-                value: value_static,
-            },
+            interned: value_static.into(),
         }
     }
 }
@@ -851,7 +862,7 @@ fn test_memoized_basic() {
     assert_ne!(*a.as_value(), 11);
     assert_eq!(*b.interned().interned_value(), 5);
     assert_eq!(*c.as_value(), 10);
-    // assert_eq!(num_interned::<usize>(), initial_interned + 2);
+    assert_eq!(num_interned::<usize>(), initial_interned + 2);
     assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
 }
 
