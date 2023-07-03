@@ -562,18 +562,23 @@ impl<T: Hash + Staticize + DataType<Type = Slice>> Deref for Interned<T> {
 
 impl<T: Hash + PartialEq + Staticize + DataType> PartialEq for Interned<T>
 where
-    T::SliceValueType: PartialEq,
+    <T as DataType>::SliceValueType: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         unsafe { self.value._partial_eq::<T>(&other.value) }
     }
 }
 
-impl<T: Hash + Staticize + Eq + DataType> Eq for Interned<T> where T::SliceValueType: PartialEq {}
+impl<T: Hash + Staticize + Eq + DataType> Eq for Interned<T>
+where
+    T: PartialEq,
+    <T as DataType>::SliceValueType: PartialEq,
+{
+}
 
 impl<T: Hash + Staticize + PartialOrd + DataType> PartialOrd for Interned<T>
 where
-    T::SliceValueType: PartialEq,
+    <T as DataType>::SliceValueType: PartialEq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         unsafe { self.value._partial_cmp::<T>(&other.value) }
@@ -582,7 +587,7 @@ where
 
 impl<T: Hash + Staticize + Ord + DataType> Ord for Interned<T>
 where
-    T::SliceValueType: PartialEq,
+    <T as DataType>::SliceValueType: PartialEq,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         unsafe { self.value._cmp::<T>(&other.value) }
@@ -618,13 +623,10 @@ impl<T: Hash + Display> Display for Interned<T> {
     }
 }
 
-#[derive(Copy, Clone)]
-pub struct Memoized<I: Hash, T: Hash + Staticize + DataType>
-where
-    T::Static: Copy + Hash,
-{
+#[derive(Clone)]
+pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     _input: PhantomData<I>,
-    interned: Interned<T::Static>,
+    interned: Interned<T>,
 }
 
 /*
@@ -634,10 +636,16 @@ where
 {
  */
 
-impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
-where
-    <T as Staticize>::Static: Hash + Sized + Copy + DataType,
-{
+impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
+    pub fn interned(&self) -> Interned<T> {
+        Interned {
+            _value: PhantomData,
+            value: self.interned.value,
+        }
+    }
+}
+
+impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T> {
     pub fn from<G>(input: &I, generator: G) -> Memoized<I, T>
     where
         G: Fn(&I) -> T,
@@ -665,62 +673,79 @@ where
             },
         }
     }
+}
 
-    pub fn interned(&self) -> Interned<T::Static> {
-        Interned {
-            _value: PhantomData,
-            value: self.interned.value,
+impl<I: Hash, T: Hash + Copy + Staticize + DataType<Type = Slice>> Deref for Memoized<I, T> {
+    type Target = [T::SliceValueType];
+
+    fn deref(&self) -> &Self::Target {
+        match self.interned().value {
+            Static::Slice(static_slice) => unsafe { static_slice.as_slice() },
+            _ => unreachable!(),
         }
     }
 }
 
-// impl<I: Hash, T: Hash + Staticize + DataType> Deref for Memoized<I, T> {
-//     type Target = T;
+impl<I: Hash, T: Hash + PartialEq + Staticize + DataType> PartialEq for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.interned() == other.interned()
+    }
+}
 
-//     fn deref(&self) -> &Self::Target {
-//         self.interned_value()
-//     }
-// }
+impl<I: Hash, T: Hash + Eq + Staticize + DataType> Eq for Memoized<I, T> where
+    <T as DataType>::SliceValueType: PartialEq
+{
+}
 
-// impl<I: Hash, T: Hash + PartialEq + Staticize + DataType> PartialEq for Memoized<I, T> {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.interned_value() == other.interned_value()
-//     }
-// }
+impl<I: Hash, T: Hash + PartialOrd + Staticize + DataType> PartialOrd for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.interned().partial_cmp(&other.interned())
+    }
+}
 
-// impl<I: Hash, T: Hash + Eq + Staticize + DataType> Eq for Memoized<I, T> {}
+impl<I: Hash, T: Hash + Ord + Staticize + DataType> Ord for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.interned().cmp(&other.interned())
+    }
+}
 
-// impl<I: Hash, T: Hash + PartialOrd + Staticize + DataType> PartialOrd for Memoized<I, T> {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         self.interned_value().partial_cmp(other.interned_value())
-//     }
-// }
+impl<I: Hash, T: Hash + Staticize + DataType> Hash for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.interned().hash(state)
+    }
+}
 
-// impl<I: Hash, T: Hash + Ord + Staticize + DataType> Ord for Memoized<I, T> {
-//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-//         self.interned_value().cmp(other.interned_value())
-//     }
-// }
+impl<I: Hash, T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Memoized")
+            .field("interned_value", &self.interned())
+            .finish()
+    }
+}
 
-// impl<I: Hash, T: Hash + Staticize + DataType> Hash for Memoized<I, T> {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         self.interned_value().hash(state)
-//     }
-// }
-
-// impl<I: Hash, T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Memoized<I, T> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("Memoized")
-//             .field("interned_value", &self.interned_value())
-//             .finish()
-//     }
-// }
-
-// impl<I: Hash, T: Hash + Staticize + DataType + Display> Display for Memoized<I, T> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         self.interned_value().fmt(f)
-//     }
-// }
+impl<I: Hash, T: Hash + Staticize + DataType + Display> Display for Memoized<I, T>
+where
+    <T as DataType>::SliceValueType: PartialEq,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.interned().fmt(f)
+    }
+}
 
 #[test]
 fn test_static_alloc() {
