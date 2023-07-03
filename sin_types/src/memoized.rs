@@ -64,9 +64,9 @@ pub trait DataType {
     type InnerType: ?Sized;
     type DerefType;
 
-    fn as_ref(&self) -> Option<&Self::ReferenceValueType>;
-    fn as_slice(&self) -> Option<&[Self::SliceValueType]>;
-    fn as_value(&self) -> Option<Self::ValueType>;
+    fn as_ref(&self) -> &Self::ReferenceValueType;
+    fn as_slice(&self) -> &[Self::SliceValueType];
+    fn as_value(&self) -> Self::ValueType;
     fn to_static(&self) -> Static;
 }
 
@@ -84,16 +84,16 @@ impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type InnerType = T;
     type DerefType = &'a [T];
 
-    fn as_ref(&self) -> Option<&'a [T]> {
-        Some(*self)
+    fn as_ref(&self) -> &'a [T] {
+        *self
     }
 
-    fn as_slice(&self) -> Option<&'a [T]> {
-        Some(*self)
+    fn as_slice(&self) -> &'a [T] {
+        *self
     }
 
-    fn as_value(&self) -> Option<&'a [T]> {
-        Some(*self)
+    fn as_value(&self) -> &'a [T] {
+        *self
     }
 
     fn to_static(&self) -> Static {
@@ -114,16 +114,16 @@ macro_rules! impl_data_type {
             type InnerType = $typ;
             type DerefType = $typ;
 
-            fn as_ref(&self) -> Option<&'static Self::ReferenceType> {
-                None
+            fn as_ref(&self) -> &'static Self::ReferenceType {
+                panic!("not a reference!");
             }
 
-            fn as_slice(&self) -> Option<&'static [Self::SliceType]> {
-                None
+            fn as_slice(&self) -> &'static [Self::SliceType] {
+                panic!("not a slice!");
             }
 
-            fn as_value(&self) -> Option<Self::ValueType> {
-                Some(self.clone())
+            fn as_value(&self) -> Self::ValueType {
+                *self
             }
 
             fn to_static(&self) -> Static {
@@ -143,20 +143,20 @@ impl<'a> DataType for &'a str {
     type InnerType = str;
     type DerefType = &'a str;
 
-    fn as_ref(&self) -> Option<&'a str> {
-        Some(*self)
+    fn as_ref(&self) -> &'a str {
+        *self
     }
 
-    fn as_slice(&self) -> Option<&'static [()]> {
-        None
+    fn as_slice(&self) -> &'static [()] {
+        panic!("not a slice!");
     }
 
-    fn as_value(&self) -> Option<&'a str> {
-        Some(*self)
+    fn as_value(&self) -> &'a str {
+        *self
     }
 
     fn to_static(&self) -> Static {
-        Static::from_str(self)
+        Static::from_str(*self)
     }
 }
 
