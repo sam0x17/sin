@@ -187,7 +187,7 @@ pub struct StaticValue {
 }
 
 impl StaticValue {
-    pub const unsafe fn as_ref<'a, T>(&self) -> &'a T {
+    pub const unsafe fn as_value<'a, T>(&self) -> &'a T {
         &*(self.ptr as *const T)
     }
 
@@ -397,9 +397,9 @@ impl Static {
         }
     }
 
-    pub unsafe fn as_ref<'a, T>(&self) -> &'a T {
+    pub unsafe fn as_value<'a, T>(&self) -> &'a T {
         match self {
-            Static::Value(static_value) => static_value.as_ref::<T>(),
+            Static::Value(static_value) => static_value.as_value::<T>(),
             _ => panic!("not a value type!"),
         }
     }
@@ -416,7 +416,7 @@ impl Static {
         T::SliceValueType: PartialEq,
     {
         match (self, other) {
-            (Static::Value(a), Static::Value(b)) => *a.as_ref::<T>() == *b.as_ref::<T>(),
+            (Static::Value(a), Static::Value(b)) => *a.as_value::<T>() == *b.as_value::<T>(),
             (Static::Slice(a), Static::Slice(b)) => {
                 a.as_slice::<T::SliceValueType>() == b.as_slice::<T::SliceValueType>()
             }
@@ -430,7 +430,9 @@ impl Static {
         other: &Self,
     ) -> Option<std::cmp::Ordering> {
         match (self, other) {
-            (Static::Value(a), Static::Value(b)) => a.as_ref::<T>().partial_cmp(b.as_ref::<T>()),
+            (Static::Value(a), Static::Value(b)) => {
+                a.as_value::<T>().partial_cmp(b.as_value::<T>())
+            }
             (Static::Slice(a), Static::Slice(b)) => {
                 a.as_slice::<T>().partial_cmp(b.as_slice::<T>())
             }
@@ -442,7 +444,7 @@ impl Static {
 
     pub unsafe fn _cmp<T: Ord + Staticize>(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
-            (Static::Value(a), Static::Value(b)) => a.as_ref::<T>().cmp(b.as_ref::<T>()),
+            (Static::Value(a), Static::Value(b)) => a.as_value::<T>().cmp(b.as_value::<T>()),
             (Static::Slice(a), Static::Slice(b)) => a.as_slice::<T>().cmp(b.as_slice::<T>()),
             (Static::Str(a), Static::Str(b)) => a.as_str().cmp(b.as_str()),
             _ => (static_type_id::<T>(), self.hash_code())
@@ -526,7 +528,7 @@ impl Interned<&str> {
 
 impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     pub fn interned_value<'a>(&self) -> &'a T {
-        unsafe { self.value.as_ref() }
+        unsafe { self.value.as_value() }
     }
 }
 
@@ -580,7 +582,7 @@ impl<T: Hash + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f = f.debug_struct(format!("Interned<{}>", static_type_name::<T>()).as_str());
         match self.value {
-            Static::Value(value) => f.field("value", unsafe { value.as_ref::<T>() }),
+            Static::Value(value) => f.field("value", unsafe { value.as_value::<T>() }),
             Static::Slice(slice) => f.field("slice", unsafe { &slice.as_slice::<T>() }),
             Static::Str(string) => f.field("str", unsafe { &string.as_str() }),
         }
@@ -592,7 +594,7 @@ impl<T: Hash + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Pointer;
         match self.value {
-            Static::Value(value) => unsafe { value.as_ref::<T>().fmt(f) },
+            Static::Value(value) => unsafe { value.as_value::<T>().fmt(f) },
             Static::Slice(slice) => unsafe { slice.as_slice::<T>().fmt(f) },
             Static::Str(string) => unsafe { string.as_str().fmt(f) },
         }
@@ -691,16 +693,16 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
 #[test]
 fn test_static_alloc() {
     let a = StaticValue::from(37);
-    assert_eq!(unsafe { *a.as_ref::<i32>() }, 37);
+    assert_eq!(unsafe { *a.as_value::<i32>() }, 37);
     let b = StaticValue::from(37);
     assert_eq!(a, b); // note: we base equality off of the hash, not the address
     let c = StaticValue::from(8348783947u64);
     assert_ne!(b, c);
-    assert_eq!(unsafe { *c.as_ref::<u64>() }, 8348783947u64);
+    assert_eq!(unsafe { *c.as_value::<u64>() }, 8348783947u64);
     let d = StaticValue::from(String::from("test"));
-    assert_eq!(unsafe { d.as_ref::<String>() }, &"test");
+    assert_eq!(unsafe { d.as_value::<String>() }, &"test");
     let e = StaticValue::from("test");
-    assert_eq!(unsafe { e.as_ref::<&str>() }, &"test");
+    assert_eq!(unsafe { e.as_value::<&str>() }, &"test");
 }
 
 #[cfg(test)]
