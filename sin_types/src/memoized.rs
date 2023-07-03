@@ -161,7 +161,6 @@ impl<'a> DataType for &'a str {
 }
 
 impl_data_type!(bool, Value);
-// impl_data_type!(String, Value);
 impl_data_type!(usize, Value);
 impl_data_type!(u8, Value);
 impl_data_type!(u16, Value);
@@ -180,7 +179,6 @@ derive_staticize_slice!(&[char]);
 
 derive_staticize!(bool);
 derive_staticize!(str);
-derive_staticize!(String);
 derive_staticize!(usize);
 derive_staticize!(u8);
 derive_staticize!(u16);
