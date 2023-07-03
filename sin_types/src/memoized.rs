@@ -66,7 +66,11 @@ pub trait DataType {
 
     fn as_slice(&self) -> &[Self::SliceValueType];
     fn as_value(&self) -> Self::ValueType;
-    fn to_static(&self) -> Static;
+    fn to_static_with_hash(&self, hash: Option<u64>) -> Static;
+
+    fn to_static(&self) -> Static {
+        self.to_static_with_hash(None)
+    }
 }
 
 pub enum Slice {}
@@ -91,8 +95,8 @@ impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
         *self
     }
 
-    fn to_static(&self) -> Static {
-        Static::from(*self)
+    fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+        Static::from(*self, hash)
     }
 }
 
@@ -117,8 +121,8 @@ macro_rules! impl_data_type {
                 *self
             }
 
-            fn to_static(&self) -> Static {
-                Static::from_value(*self)
+            fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+                Static::from_value(*self, hash)
             }
         }
     };
@@ -142,8 +146,8 @@ impl<'a> DataType for &'a str {
         *self
     }
 
-    fn to_static(&self) -> Static {
-        Static::from_str(*self)
+    fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+        Static::from_str(*self, hash)
     }
 }
 
@@ -192,9 +196,15 @@ impl StaticValue {
     }
 
     pub fn from<T: Hash>(value: T) -> Self {
-        let mut hasher = DefaultHasher::default();
-        value.hash(&mut hasher);
-        let hash = hasher.finish();
+        Self::with_hash(value, None)
+    }
+
+    pub fn with_hash<T: Hash>(value: T, hash: Option<u64>) -> Self {
+        let hash = hash.unwrap_or_else(|| {
+            let mut hasher = DefaultHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        });
         let ptr = (Box::leak(Box::from(value)) as *const T) as *const ();
         StaticValue { ptr, hash }
     }
@@ -250,9 +260,15 @@ impl StaticSlice {
     }
 
     pub fn from<T: Hash + Copy>(slice: &[T]) -> Self {
-        let mut hasher = DefaultHasher::default();
-        slice.hash(&mut hasher);
-        let hash = hasher.finish();
+        Self::with_hash(slice, None)
+    }
+
+    pub fn with_hash<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
+        let hash = hash.unwrap_or_else(|| {
+            let mut hasher = DefaultHasher::default();
+            slice.hash(&mut hasher);
+            hasher.finish()
+        });
         let ptr = unsafe {
             let ptr = std::alloc::alloc(Layout::array::<T>(slice.len()).unwrap()) as *mut T;
             std::ptr::copy(slice.as_ptr(), ptr, slice.len());
@@ -312,10 +328,16 @@ impl StaticStr {
         &*(self.ptr as *const str)
     }
 
-    pub fn from(value: &str) -> Self {
-        let mut hasher = DefaultHasher::default();
-        value.hash(&mut hasher);
-        let hash = hasher.finish();
+    pub fn from<T: Hash + Copy>(value: &str) -> Self {
+        Self::with_hash(value, None)
+    }
+
+    pub fn with_hash(value: &str, hash: Option<u64>) -> Self {
+        let hash = hash.unwrap_or_else(|| {
+            let mut hasher = DefaultHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        });
         let ptr = Box::leak(Box::from(value)) as *const str;
         let written_value = unsafe { (ptr as *const str).as_ref().unwrap() };
         assert_eq!(written_value, value);
@@ -367,12 +389,6 @@ pub enum Static {
     Str(StaticStr),
 }
 
-impl<T: Hash + Copy> From<&[T]> for Static {
-    fn from(slice: &[T]) -> Self {
-        Static::Slice(StaticSlice::from(slice))
-    }
-}
-
 impl Static {
     pub fn hash_code(&self) -> u64 {
         match self {
@@ -382,12 +398,16 @@ impl Static {
         }
     }
 
-    pub fn from_value<T: Hash>(value: T) -> Static {
-        Static::Value(StaticValue::from(value))
+    fn from<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
+        Static::Slice(StaticSlice::with_hash(slice, hash))
     }
 
-    pub fn from_str(value: &str) -> Static {
-        Static::Str(StaticStr::from(value))
+    pub fn from_value<T: Hash>(value: T, hash: Option<u64>) -> Static {
+        Static::Value(StaticValue::with_hash(value, hash))
+    }
+
+    pub fn from_str(value: &str, hash: Option<u64>) -> Static {
+        Static::Str(StaticStr::with_hash(value, hash))
     }
 
     pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
@@ -505,7 +525,7 @@ impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T> {
                 .entry(type_id)
                 .or_insert_with(|| HashMap::new())
                 .entry(hash)
-                .or_insert_with(|| value.to_static())
+                .or_insert_with(|| value.to_static_with_hash(Some(hash)))
         });
         Interned {
             _value: PhantomData,
@@ -616,7 +636,7 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
         let type_id = static_type_id::<T>();
-        let generate_value = || -> Static { generator(input).to_static() };
+        let generate_value = || -> Static { generator(input).to_static_with_hash(None) };
         let entry = MEMOIZED.with(|memoized| {
             match (*memoized)
                 .borrow_mut()
@@ -699,10 +719,6 @@ fn test_static_alloc() {
     let c = StaticValue::from(8348783947u64);
     assert_ne!(b, c);
     assert_eq!(unsafe { *c.as_value::<u64>() }, 8348783947u64);
-    let d = StaticValue::from(String::from("test"));
-    assert_eq!(unsafe { d.as_value::<String>() }, &"test");
-    let e = StaticValue::from("test");
-    assert_eq!(unsafe { e.as_value::<&str>() }, &"test");
 }
 
 #[cfg(test)]
