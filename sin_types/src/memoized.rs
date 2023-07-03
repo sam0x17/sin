@@ -26,30 +26,28 @@ pub fn static_type_name<T: Staticize>() -> &'static str {
 }
 
 pub trait Staticize {
-    type Static: 'static;
+    type Static: 'static + ?Sized;
 }
 
-impl<'a, T> Staticize for &'a T
+impl<'a, T: ?Sized> Staticize for &'a T
 where
     T: Staticize,
 {
     type Static = &'static T::Static;
 }
 
+impl<'a, T: Staticize> Staticize for &'a [T]
+where
+    <T as Staticize>::Static: Sized,
+{
+    type Static = &'static [T::Static];
+}
+
 #[macro_export]
 macro_rules! derive_staticize {
     ($typ:ty) => {
         impl $crate::memoized::Staticize for $typ {
-            type Static = &'static $typ;
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! derive_staticize_slice {
-    (&$typ:ty) => {
-        impl $crate::memoized::Staticize for &$typ {
-            type Static = &'static $typ;
+            type Static = $typ;
         }
     };
 }
@@ -164,12 +162,8 @@ impl_data_type!(i32, Value);
 impl_data_type!(i64, Value);
 impl_data_type!(i128, Value);
 
-derive_staticize_slice!(&str);
-derive_staticize_slice!(&[u8]);
-derive_staticize_slice!(&[char]);
-
-derive_staticize!(bool);
 derive_staticize!(str);
+derive_staticize!(bool);
 derive_staticize!(usize);
 derive_staticize!(u8);
 derive_staticize!(u16);
@@ -513,8 +507,11 @@ pub struct Interned<T: Hash> {
     value: Static,
 }
 
-impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T> {
-    fn from(value: T) -> Self {
+impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T::Static>
+where
+    <T as Staticize>::Static: Hash + Sized,
+{
+    fn from(value: T) -> Interned<T::Static> {
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
@@ -650,7 +647,9 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
         });
         Memoized {
             _input: PhantomData,
-            interned: Interned::from(unsafe { std::mem::transmute_copy(&entry) }),
+            interned: Interned::from(unsafe {
+                std::mem::transmute_copy::<Static, Interned<T>>(&entry)
+            }),
         }
     }
 
