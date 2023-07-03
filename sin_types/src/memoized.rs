@@ -619,13 +619,26 @@ impl<T: Hash + Display> Display for Interned<T> {
 }
 
 #[derive(Copy, Clone)]
-pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
+pub struct Memoized<I: Hash, T: Hash + Staticize + DataType>
+where
+    T::Static: Copy + Hash,
+{
     _input: PhantomData<I>,
-    interned: Interned<T>,
+    interned: Interned<T::Static>,
 }
 
-impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
-    pub fn from<G>(input: &I, generator: G) -> Self
+/*
+impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T::Static>
+where
+    <T as Staticize>::Static: Hash + Sized,
+{
+ */
+
+impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
+where
+    <T as Staticize>::Static: Hash + Sized + Copy + DataType,
+{
+    pub fn from<G>(input: &I, generator: G) -> Memoized<I, T>
     where
         G: Fn(&I) -> T,
     {
@@ -633,27 +646,27 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
         let type_id = static_type_id::<T>();
-        let generate_value = || -> Static { generator(input).to_static_with_hash(None) };
-        let entry = MEMOIZED.with(|memoized| {
+        let value_static = MEMOIZED.with(|memoized| {
             match (*memoized)
                 .borrow_mut()
                 .entry(type_id)
                 .or_insert_with(|| HashMap::new())
                 .entry(input_hash)
             {
-                Entry::Occupied(entry) => return *entry.get(), // break early
-                Entry::Vacant(entry) => *entry.insert(generate_value()),
+                Entry::Occupied(entry) => *entry.get(),
+                Entry::Vacant(entry) => *entry.insert(generator(input).to_static()),
             }
         });
         Memoized {
             _input: PhantomData,
-            interned: Interned::from(unsafe {
-                std::mem::transmute_copy::<Static, Interned<T>>(&entry)
-            }),
+            interned: Interned {
+                _value: PhantomData,
+                value: value_static,
+            },
         }
     }
 
-    pub fn interned(&self) -> Interned<T> {
+    pub fn interned(&self) -> Interned<T::Static> {
         Interned {
             _value: PhantomData,
             value: self.interned.value,
