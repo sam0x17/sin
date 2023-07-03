@@ -384,6 +384,14 @@ pub enum Static {
 }
 
 impl Static {
+    pub fn as_ptr(&self) -> *const () {
+        match self {
+            Static::Value(value) => value.ptr,
+            Static::Slice(slice) => slice.ptr,
+            Static::Str(string) => string.ptr as *const (),
+        }
+    }
+
     pub fn hash_code(&self) -> u64 {
         match self {
             Static::Value(value) => value.hash,
@@ -505,6 +513,12 @@ impl BuildHasher for TypeIdHasherBuilder {
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
     value: Static,
+}
+
+impl<T: Hash> Interned<T> {
+    pub fn as_ptr(&self) -> *const () {
+        self.value.as_ptr()
+    }
 }
 
 impl<T: Hash + Copy + Staticize + DataType> From<Static> for Interned<T> {
@@ -811,11 +825,34 @@ fn test_interned_basics() {
     assert_eq!(*a.interned_value(), 32);
     assert_eq!(*b.interned_value(), 27);
     assert_eq!(*c.interned_value(), 32);
-    // println!(
-    //     "{}",
-    //     INTERNED.with(|interned| format!("{:?}", interned.borrow()))
-    // );
     assert_eq!(num_interned::<i32>(), initial_interned + 2);
+}
+
+#[test]
+fn test_interned_showcase() {
+    let a: Interned<i32> = 1289.into();
+    let b = Interned::from(1289);
+    let c: Interned<i32> = 47.into();
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+    assert_eq!(a.as_ptr(), b.as_ptr());
+    assert_ne!(b.as_ptr(), c.as_ptr());
+    let a: Interned<&str> = "asdf".into();
+    assert_ne!(a, "fdsa".into());
+    assert_eq!(Interned::from("asdf"), a);
+    let a = Interned::from([1, 2, 3, 4, 5].as_slice());
+    assert_eq!(a, [1, 2, 3, 4, 5].as_slice().into());
+    assert_ne!(a, [4, 1, 7].as_slice().into());
+}
+
+#[test]
+fn test_interned_into() {
+    let a: Interned<i32> = 32.into();
+    let b = Interned::from(32);
+    assert_eq!(a, b);
+    let c: Interned<i32> = 43.into();
+    assert_ne!(a, c);
+    assert_ne!(c, b);
 }
 
 #[test]
