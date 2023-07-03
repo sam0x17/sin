@@ -632,15 +632,21 @@ impl<T: Hash + Staticize> Hash for Interned<T> {
     }
 }
 
-impl<T: Hash + Staticize + std::fmt::Debug> std::fmt::Debug for Interned<T> {
+impl<T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Interned<T>
+where
+    <T as DataType>::SliceValueType: std::fmt::Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f = f.debug_struct(format!("Interned<{}>", static_type_name::<T>()).as_str());
-        match self.value {
+        let ret = match self.value {
             Static::Value(value) => f.field("value", unsafe { value.as_value::<T>() }),
-            Static::Slice(slice) => f.field("slice", unsafe { &slice.as_slice::<T>() }),
+            Static::Slice(slice) => {
+                f.field("slice", unsafe { &slice.as_slice::<T::SliceValueType>() })
+            }
             Static::Str(string) => f.field("str", unsafe { &string.as_str() }),
         }
-        .finish()
+        .finish();
+        ret
     }
 }
 
@@ -773,6 +779,7 @@ where
 impl<I: Hash, T: Hash + Staticize + DataType + std::fmt::Debug> std::fmt::Debug for Memoized<I, T>
 where
     <T as DataType>::SliceValueType: PartialEq,
+    <T as DataType>::SliceValueType: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Memoized")
@@ -837,12 +844,20 @@ fn test_interned_showcase() {
     assert_ne!(a, c);
     assert_eq!(a.as_ptr(), b.as_ptr());
     assert_ne!(b.as_ptr(), c.as_ptr());
-    let a: Interned<&str> = "asdf".into();
-    assert_ne!(a, "fdsa".into());
-    assert_eq!(Interned::from("asdf"), a);
-    let a = Interned::from([1, 2, 3, 4, 5].as_slice());
-    assert_eq!(a, [1, 2, 3, 4, 5].as_slice().into());
-    assert_ne!(a, [4, 1, 7].as_slice().into());
+    let d: Interned<&str> = "asdf".into();
+    assert_ne!(d, "fdsa".into());
+    assert_eq!(Interned::from("asdf"), d);
+    let e = Interned::from([1, 2, 3, 4, 5].as_slice());
+    assert_eq!(e, [1, 2, 3, 4, 5].as_slice().into());
+    assert_ne!(e, [4, 1, 7].as_slice().into());
+    assert_eq!(format!("{b:?}"), "Interned<i32> { value: 1289 }");
+    assert_eq!(format!("{d:?}"), "Interned<&str> { str: \"asdf\" }");
+    assert_eq!(e[3], 4);
+    assert_eq!(e[0], 1);
+    assert_eq!(
+        format!("{e:?}"),
+        "Interned<&[i32]> { slice: [1, 2, 3, 4, 5] }"
+    );
 }
 
 #[test]
