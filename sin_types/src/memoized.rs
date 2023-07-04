@@ -797,6 +797,83 @@ where
     }
 }
 
+#[cfg(test)]
+#[macro_export]
+macro_rules! assert_impl {
+    ($typ:ty, $($tt:tt)*) => {
+        {
+            const fn _assert_impl<T>()
+            where
+                T: $($tt)*,
+            {}
+            _assert_impl::<$typ>();
+        }
+    }
+}
+
+#[cfg(test)]
+#[macro_export]
+macro_rules! assert_impl_all {
+    ($($typ:ty),* : $($tt:tt)*) => {{
+        const fn _assert_impl<T>() where T: $($tt)*, {}
+        $(_assert_impl::<$typ>();)*
+    }};
+}
+
+#[test]
+fn test_interned_traits() {
+    use std::fmt::Debug;
+    use std::fmt::Display;
+
+    assert_impl_all!(
+        Interned<bool>,
+        Interned<usize>,
+        Interned<u8>,
+        Interned<u16>,
+        Interned<u32>,
+        Interned<u64>,
+        Interned<u128>,
+        Interned<i8>,
+        Interned<i16>,
+        Interned<i32>,
+        Interned<i64>,
+        Interned<i128>,
+        Interned<&str> :
+        Copy
+            + Clone
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + Hash
+            + Debug
+            + Display
+    );
+
+    assert_impl_all!(
+        Interned<&[bool]>,
+        Interned<&[usize]>,
+        Interned<&[u8]>,
+        Interned<&[u16]>,
+        Interned<&[u32]>,
+        Interned<&[u64]>,
+        Interned<&[u128]>,
+        Interned<&[i8]>,
+        Interned<&[i16]>,
+        Interned<&[i32]>,
+        Interned<&[i64]>,
+        Interned<&[i128]> :
+        Copy
+            + Clone
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + Hash
+            + Debug
+    );
+}
+
 #[test]
 fn test_static_alloc() {
     let a = StaticValue::from(37);
