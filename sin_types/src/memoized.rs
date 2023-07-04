@@ -55,10 +55,8 @@ macro_rules! derive_staticize {
 pub trait DataType {
     type Type;
     type SliceType;
-    type ReferenceType;
     type ValueType;
     type SliceValueType;
-    type ReferenceValueType: ?Sized;
     type InnerType: ?Sized;
     type DerefType;
 
@@ -72,16 +70,14 @@ pub trait DataType {
 }
 
 pub enum Slice {}
-pub enum Reference {}
 pub enum Value {}
+pub enum Reference {}
 
 impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type Type = Slice;
     type SliceType = &'a [T];
-    type ReferenceType = Self::SliceType;
     type ValueType = Self::SliceType;
     type SliceValueType = T;
-    type ReferenceValueType = [T];
     type InnerType = T;
     type DerefType = &'a [T];
 
@@ -104,10 +100,8 @@ macro_rules! impl_data_type {
         impl $crate::memoized::DataType for $typ {
             type Type = $crate::memoized::Value;
             type SliceType = ();
-            type ReferenceType = ();
             type ValueType = $typ;
             type SliceValueType = ();
-            type ReferenceValueType = ();
             type InnerType = $typ;
             type DerefType = $typ;
 
@@ -129,10 +123,8 @@ macro_rules! impl_data_type {
 impl<'a> DataType for &'a str {
     type Type = Reference;
     type SliceType = &'a str;
-    type ReferenceType = &'a str;
     type ValueType = &'a str;
     type SliceValueType = ();
-    type ReferenceValueType = str;
     type InnerType = str;
     type DerefType = &'a str;
 
@@ -230,9 +222,6 @@ impl Ord for StaticValue {
     }
 }
 
-unsafe impl Send for StaticValue {}
-unsafe impl Sync for StaticValue {}
-
 impl std::fmt::Debug for StaticValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticValue")
@@ -300,9 +289,6 @@ impl Ord for StaticSlice {
     }
 }
 
-unsafe impl Send for StaticSlice {}
-unsafe impl Sync for StaticSlice {}
-
 impl std::fmt::Debug for StaticSlice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticSlice")
@@ -364,9 +350,6 @@ impl Ord for StaticStr {
         self.hash.cmp(&other.hash)
     }
 }
-
-unsafe impl Send for StaticStr {}
-unsafe impl Sync for StaticStr {}
 
 impl std::fmt::Debug for StaticStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -661,7 +644,7 @@ impl<T: Hash + Display> Display for Interned<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     _input: PhantomData<I>,
     interned: Interned<T>,
@@ -820,6 +803,26 @@ macro_rules! assert_impl_all {
     }};
 }
 
+#[cfg(test)]
+#[macro_export]
+macro_rules! assert_not_impl_any {
+    ($x:ty: $($t:path),+ $(,)?) => {
+        const _: fn() = || {
+            trait AmbiguousIfImpl<A> {
+                fn some_item() {}
+            }
+            impl<T: ?Sized> AmbiguousIfImpl<()> for T {}
+            $({
+                #[allow(dead_code)]
+                struct Invalid;
+
+                impl<T: ?Sized + $t> AmbiguousIfImpl<Invalid> for T {}
+            })+
+            let _ = <$x as AmbiguousIfImpl<_>>::some_item;
+        };
+    };
+}
+
 #[test]
 fn test_interned_traits() {
     use std::fmt::Debug;
@@ -872,6 +875,64 @@ fn test_interned_traits() {
             + Hash
             + Debug
     );
+
+    assert_not_impl_any!(Interned<u8>: Send, Sync);
+}
+
+#[test]
+fn test_memoized_traits() {
+    use std::fmt::Debug;
+    use std::fmt::Display;
+
+    assert_impl_all!(
+        Memoized<i32, bool>,
+        Memoized<i32, usize>,
+        Memoized<i32, u8>,
+        Memoized<i32, u16>,
+        Memoized<i32, u32>,
+        Memoized<i32, u64>,
+        Memoized<i32, u128>,
+        Memoized<i32, i8>,
+        Memoized<i32, i16>,
+        Memoized<i32, i32>,
+        Memoized<i32, i64>,
+        Memoized<i32, i128>,
+        Memoized<i32, &str> :
+        Copy
+            + Clone
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + Hash
+            + Debug
+            + Display
+    );
+
+    assert_impl_all!(
+        Memoized<&str, &[bool]>,
+        Memoized<&str, &[usize]>,
+        Memoized<&str, &[u8]>,
+        Memoized<&str, &[u16]>,
+        Memoized<&str, &[u32]>,
+        Memoized<&str, &[u64]>,
+        Memoized<&str, &[u128]>,
+        Memoized<&str, &[i8]>,
+        Memoized<&str, &[i16]>,
+        Memoized<&str, &[i32]>,
+        Memoized<&str, &[i64]>,
+        Memoized<&str, &[i128]> :
+        Copy
+            + Clone
+            + PartialEq
+            + Eq
+            + PartialOrd
+            + Ord
+            + Hash
+            + Debug
+    );
+
+    assert_not_impl_any!(Memoized<usize, u8>: Send, Sync);
 }
 
 #[test]
