@@ -1,10 +1,10 @@
-use crate::memoized::*;
 use crate::Symbol;
 use core::{
     fmt::Display,
     hash::{Hash, Hasher},
     ops::Deref,
 };
+use interned::Interned;
 use litrs::ParseError;
 
 pub trait ParseLiteral: Sized {

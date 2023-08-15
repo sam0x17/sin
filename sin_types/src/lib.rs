@@ -1,13 +1,12 @@
+mod symbol;
+pub use symbol::*;
 mod literal;
-pub mod memoized;
 pub use literal::*;
 mod token;
 pub use token::*;
 mod span;
 pub use span::Span;
 pub use span::*;
-
-pub use symbol::Symbol;
 
 pub mod util {
     pub const fn assert_sync<T>()
