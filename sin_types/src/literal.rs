@@ -153,6 +153,7 @@ impl Deref for ByteLit {
 pub struct ByteStringLit {
     pub raw: Symbol,
     pub value: Interned<&'static [u8]>,
+    /// Returns whether this literal is a raw byte string literal (starting with `r`).
     pub is_raw_byte_string: bool,
 }
 
@@ -248,8 +249,8 @@ impl ParseLiteral for Literal {
     }
 }
 
-// #[test]
-// fn test_literal_traits() {
-//     use crate::util::*;
-//     assert_golden_traits::<Literal>();
-// }
+#[test]
+fn test_literal_traits() {
+    use crate::util::*;
+    assert_golden_traits::<Literal>();
+}

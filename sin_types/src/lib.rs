@@ -23,15 +23,7 @@ pub mod util {
 
     pub const fn assert_golden_traits<T>()
     where
-        T: Clone
-            + Copy
-            + PartialEq
-            + Eq
-            + PartialOrd
-            + Ord
-            + core::hash::Hash
-            + core::fmt::Display
-            + core::fmt::Debug,
+        T: Copy + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug,
     {
     }
 }
