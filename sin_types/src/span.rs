@@ -1,13 +1,58 @@
 extern crate proc_macro;
 use crate::InStr;
-use core::ops::Range;
+use core::{
+    cmp::Ordering,
+    fmt::Debug,
+    hash::{Hash, Hasher},
+};
+use interned::Interned;
 use proc_macro::Span as Span1;
 
-pub struct Span {
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct SpanData {
     context: InStr,
-    offset: Range<usize>,
+    start: usize,
+    end: usize,
     span1: Option<Span1>,
 }
+
+impl SpanData {
+    pub fn source(&self) -> &str {
+        &self.context[self.start..self.end]
+    }
+}
+
+impl PartialEq for SpanData {
+    fn eq(&self, other: &Self) -> bool {
+        self.source() == other.source()
+    }
+}
+
+impl Eq for SpanData {}
+
+impl PartialOrd for SpanData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.source().partial_cmp(other.source())
+    }
+}
+
+impl Ord for SpanData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.source().cmp(other.source())
+    }
+}
+
+impl Hash for SpanData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.context.hash(state);
+        self.start.hash(state);
+        self.end.hash(state);
+    }
+}
+
+// pub struct Span {
+//     data: Interned<SpanData>,
+// }
 
 // extern crate proc_macro;
 
