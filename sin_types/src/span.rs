@@ -5,8 +5,9 @@ use core::{
     fmt::Debug,
     hash::{Hash, Hasher},
 };
-use interned::Interned;
+use interned::{unsafe_impl_data_type, Interned, _unsafe::Static};
 use proc_macro::Span as Span1;
+use staticize::derive_staticize;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct SpanData {
@@ -50,9 +51,13 @@ impl Hash for SpanData {
     }
 }
 
-// pub struct Span {
-//     data: Interned<SpanData>,
-// }
+derive_staticize!(SpanData);
+unsafe_impl_data_type!(SpanData, Value);
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Span {
+    data: Interned<SpanData>,
+}
 
 // extern crate proc_macro;
 

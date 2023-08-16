@@ -1,10 +1,9 @@
-mod interned_str;
-pub use interned_str::*;
 mod literal;
 pub use literal::*;
 mod token;
 pub use token::*;
 mod span;
+pub use interned::InStr;
 pub use span::*;
 
 pub mod util {
