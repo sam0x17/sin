@@ -1,5 +1,5 @@
-mod symbol;
-pub use symbol::*;
+mod interned_str;
+pub use interned_str::*;
 mod literal;
 pub use literal::*;
 mod token;

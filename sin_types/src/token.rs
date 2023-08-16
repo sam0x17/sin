@@ -1,39 +1,39 @@
-use crate::{Literal, Symbol};
+use crate::{InStr, Literal};
 use core::fmt::Display;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TokenParseError {
-    pub msg: Symbol,
+    pub msg: InStr,
 }
 
 impl From<&str> for TokenParseError {
     fn from(value: &str) -> Self {
         TokenParseError {
-            msg: Symbol::from(value),
+            msg: InStr::from(value),
         }
     }
 }
 
-impl From<Symbol> for TokenParseError {
-    fn from(value: Symbol) -> Self {
+impl From<InStr> for TokenParseError {
+    fn from(value: InStr) -> Self {
         TokenParseError { msg: value }
     }
 }
 
-impl From<&Symbol> for TokenParseError {
-    fn from(value: &Symbol) -> Self {
+impl From<&InStr> for TokenParseError {
+    fn from(value: &InStr) -> Self {
         TokenParseError { msg: *value }
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Token {
-    Ident(Symbol),
+    Ident(InStr),
     Literal(Literal),
     GroupPunct(GroupPunct),
     Punct(Punct),
     Keyword(Keyword),
-    CustomKeyword(Symbol),
+    CustomKeyword(InStr),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -225,17 +225,17 @@ impl From<&Keyword> for &'static str {
     }
 }
 
-impl From<Keyword> for Symbol {
+impl From<Keyword> for InStr {
     fn from(value: Keyword) -> Self {
         let value: &'static str = value.into();
-        Symbol::from(value)
+        InStr::from(value)
     }
 }
 
-impl From<&Keyword> for Symbol {
+impl From<&Keyword> for InStr {
     fn from(value: &Keyword) -> Self {
         let value: &'static str = value.into();
-        Symbol::from(value)
+        InStr::from(value)
     }
 }
 
@@ -444,17 +444,17 @@ impl From<&Punct> for &'static str {
     }
 }
 
-impl From<Punct> for Symbol {
+impl From<Punct> for InStr {
     fn from(value: Punct) -> Self {
         let value: &'static str = value.into();
-        Symbol::from(value)
+        InStr::from(value)
     }
 }
 
-impl From<&Punct> for Symbol {
+impl From<&Punct> for InStr {
     fn from(value: &Punct) -> Self {
         let value: &'static str = value.into();
-        Symbol::from(value)
+        InStr::from(value)
     }
 }
 
@@ -569,8 +569,8 @@ macro_rules! tt {
     ($lit:literal)   => { $crate::Token::Literal($crate::Literal::parse(stringify!($lit)).unwrap()) };
     (true)           => { $crate::Literal::BoolLit::True };
     (false)          => { $crate::Literal::BoolLit::False };
-    ($ident:ident)   => { $crate::Token::CustomKeyword($crate::Symbol::from(stringify!($ident))) };
-    (#$ident:ident)  => { $crate::Token::Ident($crate::Symbol::from(stringify!($ident))) };
+    ($ident:ident)   => { $crate::Token::CustomKeyword($crate::InStr::from(stringify!($ident))) };
+    (#$ident:ident)  => { $crate::Token::Ident($crate::InStr::from(stringify!($ident))) };
     (())             => { $crate::Token::GroupPunct($crate::GroupPunct::Paren) };
     ({})             => { $crate::Token::GroupPunct($crate::GroupPunct::Brace) };
     ([])             => { $crate::Token::GroupPunct($crate::GroupPunct::Bracket) };
@@ -580,7 +580,7 @@ macro_rules! tt {
 macro_rules! assert_matches_sym {
     ($expr:expr, Token::$variant:ident($sym:literal)) => {
         assert!(matches!($expr, $crate::Token::$variant(_)));
-        assert_eq!($expr, $crate::Token::$variant(Symbol::from($sym)));
+        assert_eq!($expr, $crate::Token::$variant(InStr::from($sym)));
     };
 }
 

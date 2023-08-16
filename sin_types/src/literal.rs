@@ -1,4 +1,4 @@
-use crate::Symbol;
+use crate::InStr;
 use core::{
     fmt::Display,
     hash::{Hash, Hasher},
@@ -13,13 +13,13 @@ pub trait ParseLiteral: Sized {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct IntLit {
-    pub raw: Symbol,
+    pub raw: InStr,
     pub lit: litrs::IntegerLit<&'static str>,
 }
 
 impl ParseLiteral for IntLit {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::IntegerLit::parse(raw.as_str())?;
         Ok(IntLit { raw, lit })
     }
@@ -59,13 +59,13 @@ impl Deref for IntLit {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct FloatLit {
-    pub raw: Symbol,
+    pub raw: InStr,
     pub lit: litrs::FloatLit<&'static str>,
 }
 
 impl ParseLiteral for FloatLit {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::FloatLit::parse(raw.as_str())?;
         Ok(FloatLit { raw, lit })
     }
@@ -105,13 +105,13 @@ impl Deref for FloatLit {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct ByteLit {
-    pub raw: Symbol,
+    pub raw: InStr,
     pub lit: litrs::ByteLit<&'static str>,
 }
 
 impl ParseLiteral for ByteLit {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::ByteLit::parse(raw.as_str())?;
         Ok(ByteLit { raw, lit })
     }
@@ -151,7 +151,7 @@ impl Deref for ByteLit {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ByteStringLit {
-    pub raw: Symbol,
+    pub raw: InStr,
     pub value: Interned<&'static [u8]>,
     /// Returns whether this literal is a raw byte string literal (starting with `r`).
     pub is_raw_byte_string: bool,
@@ -159,7 +159,7 @@ pub struct ByteStringLit {
 
 impl ParseLiteral for ByteStringLit {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::ByteStringLit::parse(raw.as_str())?;
         let is_raw_byte_string = lit.is_raw_byte_string();
         let value: Interned<&[u8]> = Interned::from(lit.value());
@@ -179,7 +179,7 @@ impl Display for ByteStringLit {
 
 impl ParseLiteral for char {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::CharLit::parse(raw.as_str())?;
         Ok(lit.value())
     }
@@ -187,17 +187,17 @@ impl ParseLiteral for char {
 
 impl ParseLiteral for bool {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::BoolLit::parse(raw.as_str())?;
         Ok(lit.value())
     }
 }
 
-impl ParseLiteral for Symbol {
+impl ParseLiteral for InStr {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let raw = Symbol::from(input.as_ref());
+        let raw = InStr::from(input.as_ref());
         let lit = litrs::StringLit::parse(raw.as_str())?;
-        Ok(Symbol::from(lit.value()))
+        Ok(InStr::from(lit.value()))
     }
 }
 
@@ -207,7 +207,7 @@ pub enum Literal {
     Char(char),
     Integer(IntLit),
     Float(FloatLit),
-    String(Symbol),
+    String(InStr),
     Byte(ByteLit),
     ByteString(ByteStringLit),
 }
@@ -228,11 +228,11 @@ impl Display for Literal {
 
 impl ParseLiteral for Literal {
     fn parse<S: AsRef<str>>(input: S) -> Result<Self, ParseError> {
-        let sym = Symbol::from(input.as_ref());
+        let sym = InStr::from(input.as_ref());
         match litrs::Literal::parse(sym.as_str()) {
             Ok(litrs::Literal::Bool(lit)) => Ok(Literal::Bool(lit.value())),
             Ok(litrs::Literal::Char(lit)) => Ok(Literal::Char(lit.value())),
-            Ok(litrs::Literal::String(lit)) => Ok(Literal::String(Symbol::from(lit.value()))),
+            Ok(litrs::Literal::String(lit)) => Ok(Literal::String(InStr::from(lit.value()))),
             Ok(litrs::Literal::Integer(lit)) => Ok(Literal::Integer(IntLit { raw: sym, lit })),
             Ok(litrs::Literal::Float(lit)) => Ok(Literal::Float(FloatLit { raw: sym, lit })),
             Ok(litrs::Literal::Byte(lit)) => Ok(Literal::Byte(ByteLit { raw: sym, lit })),

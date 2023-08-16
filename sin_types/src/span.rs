@@ -1,6 +1,17 @@
+extern crate proc_macro;
+use crate::InStr;
+use core::ops::Range;
+use proc_macro::Span as Span1;
+
+pub struct Span {
+    context: InStr,
+    offset: Range<usize>,
+    span1: Option<Span1>,
+}
+
 // extern crate proc_macro;
 
-// use crate::Symbol;
+// use crate::InStr;
 // use core::fmt::Debug;
 // use proc_macro::Span as Span1;
 
@@ -59,7 +70,7 @@
 // pub struct SpanData {
 //     pub start: usize,
 //     pub len: usize,
-//     pub source_text: Symbol,
+//     pub source_text: InStr,
 // }
 
 // pub trait ProvideSpanData {
@@ -108,7 +119,7 @@
 //     /// [`None`] is returned if the backing is a [`proc_macro::Span`] and the span itself does
 //     /// not refer to real source code or if this is a [`mixed_site`](`Span::mixed_site`) or
 //     /// [`call_site`](`Span::call_site`) span.
-//     pub fn source_text(&self) -> Option<Symbol> {
+//     pub fn source_text(&self) -> Option<InStr> {
 //         match self.span {
 //             Span2::Local(SpanData {
 //                 start,
@@ -121,10 +132,10 @@
 //     }
 
 //     /// Creates a new [`Span`] from the specified source [`str`],
-//     /// [`String`](`alloc::string::String`), or [`Symbol`] (or anything that implements
-//     /// [`Into<Symbol>`]). Calling this with an already allocated [`Symbol`] is a zero-cost
+//     /// [`String`](`alloc::string::String`), or [`InStr`] (or anything that implements
+//     /// [`Into<InStr>`]). Calling this with an already allocated [`InStr`] is a zero-cost
 //     /// operation.
-//     pub fn from_source<S: Into<Symbol>>(source: S) -> Span {
+//     pub fn from_source<S: Into<InStr>>(source: S) -> Span {
 //         let source = source.into();
 //         Span {
 //             span: Span2::Local(SpanData {
