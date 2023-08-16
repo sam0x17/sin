@@ -5,7 +5,6 @@ pub use literal::*;
 mod token;
 pub use token::*;
 mod span;
-pub use span::Span;
 pub use span::*;
 
 pub mod util {
