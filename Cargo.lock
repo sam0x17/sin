@@ -79,9 +79,9 @@ dependencies = [
 
 [[package]]
 name = "interned"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "148c9fedadb622db193f45839560d1e11967bbbc8f448907d1ebcafb66fcda61"
+checksum = "82695f00ba37f332caa5f4228ef88fedfcea7254aa4a11ca1bd155999293aae3"
 dependencies = [
  "docify",
  "staticize",
@@ -203,6 +203,8 @@ version = "0.0.2"
 dependencies = [
  "interned",
  "litrs",
+ "once_cell",
+ "regex",
  "staticize",
 ]
 
@@ -326,9 +328,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winnow"
-version = "0.5.11"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e461589e194280efaa97236b73623445efa195aa633fd7004f39805707a9d53"
+checksum = "83817bbecf72c73bad717ee86820ebf286203d2e04c3951f3cd538869c897364"
 dependencies = [
  "memchr",
 ]

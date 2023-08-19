@@ -4,51 +4,40 @@ use core::{
     cmp::Ordering,
     fmt::Debug,
     hash::{Hash, Hasher},
+    ops::Deref,
 };
-use interned::{unsafe_impl_data_type, Interned, _unsafe::Static};
+use interned::{unsafe_impl_data_type, DataType, Interned};
+use once_cell::unsync::Lazy;
 use proc_macro::Span as Span1;
+use regex::Regex;
 use staticize::derive_staticize;
 
-#[derive(Copy, Clone, Debug)]
-pub(crate) struct SpanData {
-    context: InStr,
-    start: usize,
-    end: usize,
-    span1: Option<Span1>,
-}
+pub trait Span1Extensions: Sized {
+    fn id(&self) -> u32 {
+        // let ptr = self as *const Self as *const u8;
+        // let bytes = unsafe { core::slice::from_raw_parts(ptr, std::mem::size_of::<Self>()) };
+        // u32::from_ne_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+        unsafe { core::mem::transmute_copy(self) }
+    }
 
-impl SpanData {
-    pub fn source(&self) -> &str {
-        &self.context[self.start..self.end]
+    fn from_id(id: u32) -> Self {
+        unsafe { core::mem::transmute_copy(&id) }
     }
 }
 
-impl PartialEq for SpanData {
-    fn eq(&self, other: &Self) -> bool {
-        self.source() == other.source()
-    }
+impl Span1Extensions for Span1 {}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+enum SpanStyle {
+    CallSite,
+    MixedSite,
+    Normal { source_text: InStr },
 }
 
-impl Eq for SpanData {}
-
-impl PartialOrd for SpanData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.source().partial_cmp(other.source())
-    }
-}
-
-impl Ord for SpanData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.source().cmp(other.source())
-    }
-}
-
-impl Hash for SpanData {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.context.hash(state);
-        self.start.hash(state);
-        self.end.hash(state);
-    }
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+enum SpanData {
+    ProcMacro(u32),
+    Fallback(SpanStyle),
 }
 
 derive_staticize!(SpanData);
