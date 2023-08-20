@@ -49,7 +49,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "syn 2.0.28",
+ "syn 2.0.29",
  "termcolor",
  "toml",
  "walkdir",
@@ -79,9 +79,9 @@ dependencies = [
 
 [[package]]
 name = "interned"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82695f00ba37f332caa5f4228ef88fedfcea7254aa4a11ca1bd155999293aae3"
+checksum = "189b023607c9cfe9b057fd0c86ca7f5bd671ac75fc30be4a717bb1ecd6146030"
 dependencies = [
  "docify",
  "staticize",
@@ -119,9 +119,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.32"
+version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f3b39ccfb720540debaa0164757101c08ecb8d326b15358ce76a62c7e85965"
+checksum = "5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae"
 dependencies = [
  "proc-macro2",
 ]
@@ -187,7 +187,7 @@ dependencies = [
  "quote",
  "sin_macros",
  "sin_types",
- "syn 2.0.28",
+ "syn 2.0.29",
 ]
 
 [[package]]
@@ -227,9 +227,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.28"
+version = "2.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04361975b3f5e348b2189d8dc55bc942f278b2d482a6a0365de5bdd62d351567"
+checksum = "c324c494eba9d92503e6f1ef2e6df781e78f6a7705a0202d9801b198807d518a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -328,9 +328,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winnow"
-version = "0.5.12"
+version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83817bbecf72c73bad717ee86820ebf286203d2e04c3951f3cd538869c897364"
+checksum = "d09770118a7eb1ccaf4a594a221334119a44a814fcb0d31c5b85e83e97227a97"
 dependencies = [
  "memchr",
 ]

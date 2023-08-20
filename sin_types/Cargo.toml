@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 staticize = ">= 0.1.1"
-interned = ">= 0.1.4"
+interned = ">= 0.1.5"
 litrs = "0.4"
 regex = "1"
 once_cell = "1"

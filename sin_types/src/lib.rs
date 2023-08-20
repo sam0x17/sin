@@ -4,7 +4,7 @@ mod token;
 pub use token::*;
 mod span;
 pub use interned::InStr;
-pub use span::*;
+pub use span::Span;
 
 pub mod util {
     pub const fn assert_sync<T>()
