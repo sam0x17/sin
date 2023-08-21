@@ -1,10 +1,16 @@
 // use sin::*;
+use sin::*;
+use test_macros::*;
 
-// #[test]
-// fn test_span_from_source() {
-//     let span = Span::from_source("struct MyStruct { field1: usize }");
-//     assert_eq!(
-//         span.source_text().unwrap(),
-//         "struct MyStruct { field1: usize }"
-//     )
-// }
+#[test]
+fn test_span1_from_span() {
+    span_from_span1!(a);
+    span_from_span1!({ a b c d e f g});
+    span_from_span1! {
+        {
+            pub fn my_fn<T: Something>(&self, something: T) -> Option<T> {
+                Some(something)
+            }
+        }
+    };
+}

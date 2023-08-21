@@ -1,5 +1,5 @@
 [workspace]
-members = ["sin_macros", "sin_types"]
+members = ["sin_macros", "sin_types", "tests/test_macros"]
 
 [package]
 name = "sin"
@@ -20,3 +20,4 @@ sin_types = { path = "sin_types", version = "0.0.2" }
 proc-macro2 = "1"
 quote = "1"
 syn = "2"
+test_macros = { path = "tests/test_macros" }

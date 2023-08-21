@@ -40,6 +40,19 @@ derive_staticize!(SpanData);
 unsafe_impl_data_type!(SpanData, Value);
 derive_from_interned_impl_value!(SpanData);
 
+impl SpanData {
+    /// Returns the internal compiler-assigned identifier for this [`SpanData`], if applicable.
+    ///
+    /// For a [`SpanData::ProcMacro`] this should return a [`Some`] value. For
+    /// [`SpanData::Fallback`], this will return [`None`].
+    pub fn span_id(&self) -> Option<u32> {
+        match self {
+            SpanData::ProcMacro(id) => Some(*id),
+            SpanData::Fallback { .. } => None,
+        }
+    }
+}
+
 impl From<u32> for SpanData {
     fn from(value: u32) -> Self {
         SpanData::ProcMacro(value)
