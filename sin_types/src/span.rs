@@ -57,6 +57,25 @@ impl Deref for Span {
     }
 }
 
+impl From<Span1> for Span {
+    fn from(span1: Span1) -> Self {
+        let data: SpanData = span1.id().into();
+        Span(data.into())
+    }
+}
+
+impl From<Span> for Span1 {
+    fn from(span: Span) -> Self {
+        match span.0.interned_value() {
+            SpanData::ProcMacro(id) => Span1::from_id(*id),
+            SpanData::Fallback { style, .. } => match style {
+                SpanStyle::MixedSite => Span1::mixed_site(),
+                SpanStyle::Normal | SpanStyle::CallSite => Span1::call_site(),
+            },
+        }
+    }
+}
+
 impl Span {
     /// Returns the underlying [`SpanData`] used to represent this [`Span`].
     ///

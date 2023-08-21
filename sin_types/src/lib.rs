@@ -2,7 +2,7 @@ mod literal;
 pub use literal::*;
 mod token;
 pub use token::*;
-mod span;
+pub mod span;
 pub use interned::InStr;
 pub use span::Span;
 
