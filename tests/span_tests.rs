@@ -1,9 +1,9 @@
-// use sin::*;
-use sin::*;
+#![cfg(test)]
+
 use test_macros::*;
 
 #[test]
-fn test_span1_from_span() {
+fn test_span_from_span1() {
     span_from_span1!(a);
     span_from_span1!({ a b c d e f g});
     span_from_span1! {
@@ -13,4 +13,20 @@ fn test_span1_from_span() {
             }
         }
     };
+}
+
+#[test]
+fn test_span_round_trip() {
+    span_round_trip!(a b c d e f g);
+    span_round_trip!({ a b c d e f g });
+    span_round_trip! {
+        {
+            pub mod my_module {
+                pub enum MyEnum<T> {
+                    Red,
+                    Blue(T),
+                }
+            }
+        }
+    }
 }
