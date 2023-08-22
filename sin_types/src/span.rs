@@ -135,7 +135,6 @@ impl Span {
     /// code, including spaces and comments.
     pub fn source_text(&self) -> Option<InStr> {
         match self.0.interned_value() {
-            // TODO: memoize here
             SpanData::ProcMacro(id) => match Span1::from_id(*id).source_text() {
                 Some(string) => Some(string.into()),
                 None => None,
