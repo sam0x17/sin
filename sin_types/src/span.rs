@@ -7,9 +7,6 @@ use staticize::derive_staticize;
 
 pub trait Span1Extensions: Sized {
     fn id(&self) -> u32 {
-        // let ptr = self as *const Self as *const u8;
-        // let bytes = unsafe { core::slice::from_raw_parts(ptr, std::mem::size_of::<Self>()) };
-        // u32::from_ne_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
         unsafe { core::mem::transmute_copy(self) }
     }
 
