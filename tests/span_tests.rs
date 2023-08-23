@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use sin::*;
 use test_macros::*;
 
 #[test]
@@ -29,4 +30,10 @@ fn test_span_round_trip() {
             }
         }
     }
+}
+
+#[test]
+fn test_span_new_fallback() {
+    let span = Span::new("pub fn foo() {}");
+    assert!(matches!(span, S))
 }
