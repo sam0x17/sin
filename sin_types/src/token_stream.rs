@@ -2,8 +2,9 @@ use crate::*;
 
 pub struct TokenStream {
     tokens: Vec<Token>,
-    pub span: Span,
 }
+
+// dual fallback model?
 
 impl TokenStream {
     pub fn iter(&self) -> TSIterator {
