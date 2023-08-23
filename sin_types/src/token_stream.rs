@@ -1,9 +1,7 @@
-use std::collections::VecDeque;
-
 use crate::*;
 
 pub struct TokenStream {
-    tokens: VecDeque<Token>,
+    tokens: Vec<Token>,
     pub span: Span,
 }
 
@@ -18,7 +16,7 @@ impl TokenStream {
 
 pub struct TSIterator<'a> {
     cursor: usize,
-    tokens: &'a VecDeque<Token>,
+    tokens: &'a Vec<Token>,
 }
 
 impl<'a> Iterator for TSIterator<'a> {
