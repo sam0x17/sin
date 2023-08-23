@@ -204,8 +204,6 @@ version = "0.0.2"
 dependencies = [
  "interned",
  "litrs",
- "once_cell",
- "regex",
  "staticize",
 ]
 

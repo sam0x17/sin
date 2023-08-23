@@ -5,6 +5,8 @@ pub use token::*;
 pub mod span;
 pub use interned::InStr;
 pub use span::Span;
+pub mod token_stream;
+pub use token_stream::TokenStream;
 
 pub mod util {
     pub const fn assert_sync<T>()
