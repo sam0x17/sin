@@ -35,5 +35,5 @@ fn test_span_round_trip() {
 #[test]
 fn test_span_new_fallback() {
     let span = Span::new("pub fn foo() {}");
-    assert!(matches!(span, S))
+    assert!(span.is_fallback());
 }
