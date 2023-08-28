@@ -3,10 +3,11 @@ pub use literal::*;
 mod token;
 pub use token::*;
 pub mod span;
-pub use interned::InStr;
+pub use interned::{InPath, InStr};
 pub use span::Span;
 pub mod token_stream;
 pub use token_stream::TokenStream;
+pub mod source;
 
 pub mod util {
     pub const fn assert_sync<T>()
