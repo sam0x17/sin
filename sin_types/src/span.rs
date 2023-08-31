@@ -4,6 +4,7 @@ use core::{fmt::Debug, hash::Hash, ops::Deref};
 use interned::{derive_from_interned_impl_value, unsafe_impl_data_type, Interned};
 use proc_macro::Span as Span1;
 use staticize::derive_staticize;
+use std::ops::Range;
 
 pub trait Spanned {
     fn span(&self) -> Span;
@@ -64,15 +65,26 @@ pub enum SpanStyle {
 
 /// An internal implementation detail of [`Span`] that contains the actual data that gets
 /// interned on behalf of a particular [`Span`].
-///
-/// Returned by [`Span::span_data`].
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum SpanData {
     ProcMacro(u32),
     Fallback {
         style: SpanStyle,
-        source_text: Option<InStr>,
+        source_text: Option<SourceExcerpt>,
     },
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SourceExcerpt {
+    start: usize,
+    end: usize,
+    source: InStr,
+}
+
+impl SourceExcerpt {
+    pub fn as_str(&self) -> &'static str {
+        &self.source.as_str()[self.start..self.end]
+    }
 }
 
 derive_staticize!(SpanData);
@@ -187,13 +199,13 @@ impl Span {
 
     /// Returns the source text behind a span, if available. This preserves the original source
     /// code, including spaces and comments.
-    pub fn source_text(&self) -> Option<InStr> {
+    pub fn source_text(&self) -> Option<&'static str> {
         match self.0.interned_value() {
             SpanData::ProcMacro(id) => match unsafe { Span1::from_id(*id) }.source_text() {
-                Some(string) => Some(string.into()),
+                Some(string) => Some(InStr::from(string).as_str()),
                 None => None,
             },
-            SpanData::Fallback { source_text, .. } => *source_text,
+            SpanData::Fallback { source_text, .. } => source_text.map(|v| v.as_str()),
         }
     }
 
@@ -204,10 +216,30 @@ impl Span {
     /// created [`Span`] will be identical to / interchangeable with that `TokenStream`'s
     /// [`Span`].
     pub fn new(source: impl Into<InStr>) -> Span {
+        let st: InStr = source.into();
         Span(
             SpanData::Fallback {
                 style: SpanStyle::Normal,
-                source_text: Some(source.into()),
+                source_text: Some(SourceExcerpt {
+                    start: 0,
+                    end: st.len(),
+                    source: st,
+                }),
+            }
+            .into(),
+        )
+    }
+
+    pub fn new_within(source: impl Into<InStr>, range: Range<usize>) -> Span {
+        let st: InStr = source.into();
+        Span(
+            SpanData::Fallback {
+                style: SpanStyle::Normal,
+                source_text: Some(SourceExcerpt {
+                    start: range.start,
+                    end: range.end,
+                    source: st,
+                }),
             }
             .into(),
         )
@@ -232,7 +264,11 @@ impl Span {
             let span1 = unsafe { Span1::from_id(*id) };
             SpanData::Fallback {
                 style: SpanStyle::Normal,
-                source_text: span1.source_text().map(|s| s.into()),
+                source_text: span1.source_text().map(|s| SourceExcerpt {
+                    start: 0,
+                    end: s.len(),
+                    source: s.into(),
+                }),
             }
             .into()
         } else {
