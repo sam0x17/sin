@@ -18,11 +18,17 @@ impl Spanned for TokenTree {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Group {
-    delimiter: Delimiter,
-    span: Span,
-    open_span: Span,
-    close_span: Span,
-    content: TokenStream,
+    pub delimiter: Delimiter,
+    pub span: Span,
+    pub span_open: Span,
+    pub span_close: Span,
+    pub content: TokenStream,
+}
+
+impl Spanned for Group {
+    fn span(&self) -> Span {
+        self.span
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

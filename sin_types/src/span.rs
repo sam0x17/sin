@@ -212,9 +212,7 @@ impl Span {
     /// Creates a new `Span` from the specified source string.
     ///
     /// The created span will use the fallback implementation rather than a built-in
-    /// [`proc_macro::Span`]. If `source` exactly matches an existing `TokenStream`, the
-    /// created [`Span`] will be identical to / interchangeable with that `TokenStream`'s
-    /// [`Span`].
+    /// [`proc_macro::Span`].
     pub fn new(source: impl Into<InStr>) -> Span {
         let st: InStr = source.into();
         Span(
@@ -230,6 +228,10 @@ impl Span {
         )
     }
 
+    /// Creates a new `Span` as a range/offset within the specified source string.
+    ///
+    /// The created span will use the fallback implementation rather than a built-in
+    /// [`proc_macro::Span`].
     pub fn new_within(source: impl Into<InStr>, range: Range<usize>) -> Span {
         let st: InStr = source.into();
         Span(
