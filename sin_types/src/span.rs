@@ -5,6 +5,16 @@ use interned::{derive_from_interned_impl_value, unsafe_impl_data_type, Interned}
 use proc_macro::Span as Span1;
 use staticize::derive_staticize;
 
+pub trait Spanned {
+    fn span(&self) -> Span;
+}
+
+impl Spanned for Span {
+    fn span(&self) -> Span {
+        *self
+    }
+}
+
 pub trait Span1Extensions: Sized {
     /// Returns the internal identifier used to identify this [`proc_macro::Span`] in the
     /// global interning table.

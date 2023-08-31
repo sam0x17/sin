@@ -27,6 +27,12 @@ pub mod util {
         T: Copy + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug,
     {
     }
+
+    pub const fn assert_golden_traits_non_copy<T>()
+    where
+        T: Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug,
+    {
+    }
 }
 
 #[doc(hidden)]

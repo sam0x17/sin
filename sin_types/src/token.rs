@@ -1,5 +1,29 @@
-use crate::{InStr, Literal};
+use crate::{span::Spanned, InStr, Literal, Span, TokenStream};
 use core::fmt::Display;
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum TokenTree {
+    Leaf(Token, Span),
+    Tree(Group),
+}
+
+impl Spanned for TokenTree {
+    fn span(&self) -> Span {
+        match self {
+            TokenTree::Leaf(_, span) => *span,
+            TokenTree::Tree(group) => group.span,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Group {
+    delimiter: Delimiter,
+    span: Span,
+    open_span: Span,
+    close_span: Span,
+    content: TokenStream,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TokenParseError {
@@ -30,7 +54,7 @@ impl From<&InStr> for TokenParseError {
 pub enum Token {
     Ident(InStr),
     Literal(Literal),
-    GroupPunct(GroupPunct),
+    Delimiter(Delimiter),
     Punct(Punct),
     Keyword(Keyword),
     CustomKeyword(InStr),
@@ -91,10 +115,6 @@ pub enum Keyword {
     While,
     Yield,
 }
-
-// impl Keyword {
-//     pub fn as_str(&self)
-// }
 
 impl TryFrom<&str> for Keyword {
     type Error = TokenParseError;
@@ -246,7 +266,7 @@ impl Display for Keyword {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum GroupPunct {
+pub enum Delimiter {
     Brace,
     Bracket,
     Paren,
@@ -254,9 +274,9 @@ pub enum GroupPunct {
 
 // TODO: add struct Group(GroupPunct, TokenStream) that contains this
 
-impl GroupPunct {
+impl Delimiter {
     pub const fn open(self) -> char {
-        use GroupPunct::*;
+        use Delimiter::*;
         match self {
             Brace => '{',
             Bracket => '[',
@@ -265,7 +285,7 @@ impl GroupPunct {
     }
 
     pub const fn close(self) -> char {
-        use GroupPunct::*;
+        use Delimiter::*;
         match self {
             Brace => '}',
             Bracket => ']',
@@ -466,7 +486,7 @@ impl Display for Punct {
 
 #[rustfmt::skip]
 #[macro_export]
-macro_rules! tt {
+macro_rules! t {
     (abstract)       => { $crate::Token::Keyword($crate::Keyword::Abstract) };
     (as)             => { $crate::Token::Keyword($crate::Keyword::As) };
     (async)          => { $crate::Token::Keyword($crate::Keyword::Async) };
@@ -571,9 +591,9 @@ macro_rules! tt {
     (false)          => { $crate::Literal::BoolLit::False };
     ($ident:ident)   => { $crate::Token::CustomKeyword($crate::InStr::from(stringify!($ident))) };
     (#$ident:ident)  => { $crate::Token::Ident($crate::InStr::from(stringify!($ident))) };
-    (())             => { $crate::Token::GroupPunct($crate::GroupPunct::Paren) };
-    ({})             => { $crate::Token::GroupPunct($crate::GroupPunct::Brace) };
-    ([])             => { $crate::Token::GroupPunct($crate::GroupPunct::Bracket) };
+    (())             => { $crate::Token::Delimiter($crate::Delimiter::Paren) };
+    ({})             => { $crate::Token::Delimiter($crate::Delimiter::Brace) };
+    ([])             => { $crate::Token::Delimiter($crate::Delimiter::Bracket) };
 }
 
 #[macro_export]
@@ -588,4 +608,5 @@ macro_rules! assert_matches_sym {
 fn test_token_traits() {
     use crate::util::*;
     assert_golden_traits::<Token>();
+    assert_golden_traits_non_copy::<TokenTree>();
 }
