@@ -1,5 +1,11 @@
-use crate::{span::Spanned, *};
+use crate::{
+    span::{Span1Extensions, Spanned},
+    *,
+};
 use core::fmt::Display;
+
+extern crate proc_macro;
+use proc_macro::Span as Span1;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum TokenTree {
@@ -33,6 +39,74 @@ impl From<Token> for TokenTree {
             Token::Punct(punct) => TokenTree::Leaf(Token::Punct(punct), Span::new(punct)),
             Token::Keyword(kw) => TokenTree::Leaf(Token::Keyword(kw), Span::new(kw)),
             Token::CustomKeyword(st) => TokenTree::Leaf(Token::CustomKeyword(st), Span::new(st)),
+        }
+    }
+}
+
+impl From<TokenTree> for Token {
+    fn from(value: TokenTree) -> Self {
+        match value {
+            TokenTree::Leaf(token, _) => token,
+            TokenTree::Tree(group) => Token::Delimiter(group.delimiter),
+        }
+    }
+}
+
+impl From<&TokenTree> for TokenTree {
+    fn from(value: &TokenTree) -> Self {
+        value.clone()
+    }
+}
+
+impl AsInStr for Token {
+    fn in_str(&self) -> InStr {
+        match self {
+            Token::Ident(ident) => ident.in_str(),
+            Token::Literal(lit) => lit.in_str(),
+            Token::Delimiter(delim) => match delim {
+                Delimiter::Brace => "{}".into(),
+                Delimiter::Bracket => "[]".into(),
+                Delimiter::Paren => "()".into(),
+            },
+            Token::Punct(punct) => punct.in_str(),
+            Token::Keyword(kw) => kw.in_str(),
+            Token::CustomKeyword(in_str) => *in_str,
+        }
+    }
+}
+
+impl Token {
+    pub fn as_str(&self) -> &'static str {
+        self.in_str().as_str()
+    }
+}
+
+impl TokenTree {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TokenTree::Leaf(token, _) => token.in_str().as_str(),
+            TokenTree::Tree(group) => match group.span.span_data() {
+                span::SpanData::ProcMacro(id) => match unsafe { Span1::from_id(*id) }.source_text()
+                {
+                    Some(st) => InStr::from(st).as_str(),
+                    None => match group.delimiter {
+                        Delimiter::Brace => "{}",
+                        Delimiter::Bracket => "[]",
+                        Delimiter::Paren => "()",
+                    },
+                },
+                span::SpanData::Fallback {
+                    style: _,
+                    source_text,
+                } => match source_text {
+                    Some(excerpt) => excerpt.as_str(),
+                    None => match group.delimiter {
+                        Delimiter::Brace => "{}",
+                        Delimiter::Bracket => "[]",
+                        Delimiter::Paren => "()",
+                    },
+                },
+            },
         }
     }
 }

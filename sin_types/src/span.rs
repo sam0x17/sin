@@ -1,5 +1,5 @@
 extern crate proc_macro;
-use crate::InStr;
+use crate::*;
 use core::{fmt::Debug, hash::Hash, ops::Deref};
 use interned::{derive_from_interned_impl_value, unsafe_impl_data_type, Interned};
 use proc_macro::Span as Span1;

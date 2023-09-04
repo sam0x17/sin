@@ -28,6 +28,14 @@ impl TokenStream {
         }
     }
 
+    pub fn from_tokens(tokens: &[TokenTree]) -> TokenStream {
+        let mut ts = TokenStream::new();
+        for token in tokens {
+            ts.push(token);
+        }
+        ts
+    }
+
     pub fn extend(&mut self, tokens: impl Into<TokenStream>) {
         let tokens = tokens.into();
         self.tokens.extend(tokens.tokens);
@@ -35,6 +43,28 @@ impl TokenStream {
 
     pub fn push(&mut self, token_tree: impl Into<TokenTree>) {
         self.tokens.push(token_tree.into());
+    }
+}
+
+impl From<TokenTree> for TokenStream {
+    fn from(value: TokenTree) -> Self {
+        TokenStream::from_tokens(&[value])
+    }
+}
+
+impl From<&[TokenTree]> for TokenStream {
+    fn from(value: &[TokenTree]) -> Self {
+        TokenStream::from_tokens(value)
+    }
+}
+
+impl FromIterator<TokenTree> for TokenStream {
+    fn from_iter<T: IntoIterator<Item = TokenTree>>(iter: T) -> Self {
+        let v: Vec<TokenTree> = iter.into_iter().collect();
+        let span = Span::new(InStr::from(
+            v.iter().map(|t| t.as_str()).collect::<String>(),
+        ));
+        TokenStream { tokens: v, span }
     }
 }
 

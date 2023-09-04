@@ -31,7 +31,7 @@ pub trait Parse: Sized {
 }
 
 pub struct Ident {
-    token_tree: TokenTree,
+    _token_tree: TokenTree,
 }
 
 // impl Parse for Ident {
