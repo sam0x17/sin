@@ -1,4 +1,4 @@
-use crate::{span::Spanned, InStr, Literal, Span, TokenStream};
+use crate::{span::Spanned, *};
 use core::fmt::Display;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -16,6 +16,29 @@ impl Spanned for TokenTree {
     }
 }
 
+impl From<Token> for TokenTree {
+    fn from(value: Token) -> Self {
+        match value {
+            Token::Ident(ident) => TokenTree::Leaf(Token::Ident(ident), Span::new(ident)),
+            Token::Literal(literal) => {
+                TokenTree::Leaf(Token::Literal(literal), Span::new(literal.in_str()))
+            }
+            Token::Delimiter(delimiter) => TokenTree::Tree(Group {
+                delimiter,
+                span: Span::call_site(),
+                span_open: Span::call_site(),
+                span_close: Span::call_site(),
+                content: TokenStream::new(),
+            }),
+            Token::Punct(punct) => TokenTree::Leaf(Token::Punct(punct), Span::new(punct)),
+            Token::Keyword(kw) => TokenTree::Leaf(Token::Keyword(kw), Span::new(kw)),
+            Token::CustomKeyword(st) => TokenTree::Leaf(Token::CustomKeyword(st), Span::new(st)),
+        }
+    }
+}
+
+/// Represents a [`Spanned`] group consisting of a [`TokenStream`] enclosed by a matching
+/// [`Delimiter`] pair.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Group {
     pub delimiter: Delimiter,
@@ -265,6 +288,12 @@ impl From<&Keyword> for InStr {
     }
 }
 
+impl AsInStr for Keyword {
+    fn in_str(&self) -> InStr {
+        self.into()
+    }
+}
+
 impl Display for Keyword {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str((*self).into())
@@ -277,8 +306,6 @@ pub enum Delimiter {
     Bracket,
     Paren,
 }
-
-// TODO: add struct Group(GroupPunct, TokenStream) that contains this
 
 impl Delimiter {
     pub const fn open(self) -> char {
@@ -474,6 +501,12 @@ impl From<Punct> for InStr {
     fn from(value: Punct) -> Self {
         let value: &'static str = value.into();
         InStr::from(value)
+    }
+}
+
+impl AsInStr for Punct {
+    fn in_str(&self) -> InStr {
+        self.into()
     }
 }
 

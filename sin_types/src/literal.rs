@@ -1,4 +1,4 @@
-use crate::InStr;
+use crate::*;
 use core::{
     fmt::Display,
     hash::{Hash, Hasher},
@@ -210,6 +210,44 @@ pub enum Literal {
     String(InStr),
     Byte(ByteLit),
     ByteString(ByteStringLit),
+}
+
+impl AsInStr for IntLit {
+    fn in_str(&self) -> InStr {
+        self.raw
+    }
+}
+
+impl AsInStr for FloatLit {
+    fn in_str(&self) -> InStr {
+        self.raw
+    }
+}
+
+impl AsInStr for ByteLit {
+    fn in_str(&self) -> InStr {
+        self.raw
+    }
+}
+
+impl AsInStr for ByteStringLit {
+    fn in_str(&self) -> InStr {
+        self.raw
+    }
+}
+
+impl AsInStr for Literal {
+    fn in_str(&self) -> InStr {
+        match self {
+            Literal::Bool(item) => item.in_str(),
+            Literal::Char(item) => item.in_str(),
+            Literal::Integer(item) => item.in_str(),
+            Literal::Float(item) => item.in_str(),
+            Literal::String(item) => item.in_str(),
+            Literal::Byte(item) => item.in_str(),
+            Literal::ByteString(item) => item.in_str(),
+        }
+    }
 }
 
 impl Display for Literal {

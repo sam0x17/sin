@@ -7,7 +7,11 @@ pub use interned::{InPath, InStr};
 pub use span::Span;
 pub mod token_stream;
 pub use token_stream::TokenStream;
+pub mod parsing;
 pub mod source;
+pub use parsing::*;
+pub mod traits;
+pub use traits::*;
 
 pub mod util {
     pub const fn assert_sync<T>()
