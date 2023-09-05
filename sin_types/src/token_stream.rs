@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{span::Spanned, *};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -68,6 +70,11 @@ impl FromIterator<TokenTree> for TokenStream {
     }
 }
 
+pub trait Peekable<T>: Iterator<Item = T> {
+    fn peek_n(&self, n: isize) -> Option<T>;
+    fn peek(&self) -> Option<T>;
+}
+
 pub struct TSIterator<'a, T = ()> {
     cursor: usize,
     tokens: &'a Vec<TokenTree>,
@@ -99,6 +106,13 @@ impl<'a> TSIterator<'a> {
 
     pub fn peek(&self) -> Option<TokenTree> {
         self.tokens.get(self.cursor + 1).cloned()
+    }
+
+    pub fn matches_peek(&self, token: Token) -> bool {
+        match self.peek() {
+            Some(peeked_token) => todo!(),
+            None => todo!(),
+        }
     }
 }
 

@@ -111,6 +111,18 @@ impl TokenTree {
     }
 }
 
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Display for TokenTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Represents a [`Spanned`] group consisting of a [`TokenStream`] enclosed by a matching
 /// [`Delimiter`] pair.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -704,6 +716,7 @@ macro_rules! t {
     (false)          => { $crate::Literal::BoolLit::False };
     ($ident:ident)   => { $crate::Token::CustomKeyword($crate::InStr::from(stringify!($ident))) };
     (#$ident:ident)  => { $crate::Token::Ident($crate::InStr::from(stringify!($ident))) };
+    (#*)             => { $crate::Token::Ident($crate::InStr::from(stringify!("*"))) };
     (())             => { $crate::Token::Delimiter($crate::Delimiter::Paren) };
     ({})             => { $crate::Token::Delimiter($crate::Delimiter::Brace) };
     ([])             => { $crate::Token::Delimiter($crate::Delimiter::Bracket) };
