@@ -7,14 +7,43 @@ pub enum Pattern<T> {
     Wildcard,
 }
 
+impl<T: PartialEq> Matches<Pattern<T>> for T {
+    fn matches(&self, pattern: Pattern<T>) -> bool {
+        match pattern {
+            Pattern::Specific(val) => *self == val,
+            Pattern::Wildcard => true,
+        }
+    }
+}
+
+/// Generic trait representing anything that can be subjected to matching via a [`Pattern`].
+pub trait Matches<T> {
+    /// Returns `true` if `self` matches the specified `pattern`.
+    fn matches(&self, pattern: T) -> bool;
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum TokenPattern {
     Ident(Pattern<InStr>),
     Literal(LiteralPattern),
-    Delimiter(Delimiter),
-    Punct(Punct),
-    Keyword(Keyword),
+    Delimiter(Pattern<Delimiter>),
+    Punct(Pattern<Punct>),
+    Keyword(Pattern<Keyword>),
     CustomKeyword(Pattern<InStr>),
+}
+
+impl Matches<TokenPattern> for Token {
+    fn matches(&self, pattern: TokenPattern) -> bool {
+        match (self, pattern) {
+            (Token::Ident(ident), TokenPattern::Ident(pat)) => ident.matches(pat),
+            (Token::Literal(lit), TokenPattern::Literal(pat)) => lit.matches(pat),
+            (Token::Delimiter(delim), TokenPattern::Delimiter(pat)) => delim.matches(pat),
+            (Token::Punct(punct), TokenPattern::Punct(pat)) => punct.matches(pat),
+            (Token::Keyword(kw), TokenPattern::Keyword(pat)) => kw.matches(pat),
+            (Token::CustomKeyword(ckw), TokenPattern::CustomKeyword(pat)) => ckw.matches(pat),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -26,6 +55,21 @@ pub enum LiteralPattern {
     String(Pattern<InStr>),
     Byte(Pattern<ByteLit>),
     ByteString(Pattern<ByteStringLit>),
+}
+
+impl Matches<LiteralPattern> for Literal {
+    fn matches(&self, pattern: LiteralPattern) -> bool {
+        match (self, pattern) {
+            (Literal::Bool(b), LiteralPattern::BoolLit(pat)) => b.matches(pat),
+            (Literal::Char(c), LiteralPattern::Char(pat)) => c.matches(pat),
+            (Literal::Integer(i), LiteralPattern::Integer(pat)) => i.matches(pat),
+            (Literal::Float(f), LiteralPattern::Float(pat)) => f.matches(pat),
+            (Literal::String(s), LiteralPattern::String(pat)) => s.matches(pat),
+            (Literal::Byte(b), LiteralPattern::Byte(pat)) => b.matches(pat),
+            (Literal::ByteString(b), LiteralPattern::ByteString(pat)) => b.matches(pat),
+            _ => false,
+        }
+    }
 }
 
 #[rustfmt::skip]
