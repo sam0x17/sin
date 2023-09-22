@@ -1,5 +1,4 @@
 use crate::{token_stream::TSIterator, *};
-use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ParseError {
@@ -58,7 +57,7 @@ pub trait Parse: Sized {
 }
 
 pub struct Ident {
-    token_tree: TokenTree,
+    _token_tree: TokenTree,
 }
 
 // impl Parse for Ident {

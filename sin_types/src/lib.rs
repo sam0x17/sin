@@ -12,6 +12,8 @@ pub mod source;
 pub use parsing::*;
 pub mod traits;
 pub use traits::*;
+pub mod pattern;
+pub use pattern::*;
 
 pub mod util {
     pub const fn assert_sync<T>()

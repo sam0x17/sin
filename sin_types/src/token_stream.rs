@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::{span::Spanned, *};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -108,9 +106,9 @@ impl<'a> TSIterator<'a> {
         self.tokens.get(self.cursor + 1).cloned()
     }
 
-    pub fn matches_peek(&self, token: Token) -> bool {
+    pub fn matches_peek(&self, _token: Token) -> bool {
         match self.peek() {
-            Some(peeked_token) => todo!(),
+            Some(_peeked_token) => todo!(),
             None => todo!(),
         }
     }

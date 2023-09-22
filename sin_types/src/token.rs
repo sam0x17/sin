@@ -712,11 +712,10 @@ macro_rules! t {
     (~)              => { $crate::Token::Punct($crate::Punct::Tilde) };
     (_)              => { $crate::Token::Punct($crate::Punct::Underscore) };
     ($lit:literal)   => { $crate::Token::Literal($crate::Literal::parse(stringify!($lit)).unwrap()) };
-    (true)           => { $crate::Literal::BoolLit::True };
-    (false)          => { $crate::Literal::BoolLit::False };
+    (true)           => { $crate::Token::Literal($crate::Literal::BoolLit::True) };
+    (false)          => { $crate::Token::Literal($crate::Literal::BoolLit::False) };
     ($ident:ident)   => { $crate::Token::CustomKeyword($crate::InStr::from(stringify!($ident))) };
     (#$ident:ident)  => { $crate::Token::Ident($crate::InStr::from(stringify!($ident))) };
-    (#*)             => { $crate::Token::Ident($crate::InStr::from(stringify!("*"))) };
     (())             => { $crate::Token::Delimiter($crate::Delimiter::Paren) };
     ({})             => { $crate::Token::Delimiter($crate::Delimiter::Brace) };
     ([])             => { $crate::Token::Delimiter($crate::Delimiter::Bracket) };
