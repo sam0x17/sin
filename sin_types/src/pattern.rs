@@ -1,3 +1,5 @@
+use interned::Interned;
+
 use crate::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -55,6 +57,50 @@ pub enum LiteralPattern {
     String(Pattern<InStr>),
     Byte(Pattern<ByteLit>),
     ByteString(Pattern<ByteStringLit>),
+}
+
+impl ParseLiteral for LiteralPattern {
+    fn parse<S: AsRef<str>>(input: S) -> Result<Self, litrs::ParseError> {
+        let sym = InStr::from(input.as_ref());
+        match litrs::Literal::parse(sym.as_str()) {
+            Ok(litrs::Literal::Bool(lit)) => {
+                Ok(LiteralPattern::BoolLit(Pattern::Specific(lit.value())))
+            }
+            Ok(litrs::Literal::Char(lit)) => {
+                Ok(LiteralPattern::Char(Pattern::Specific(lit.value())))
+            }
+            Ok(litrs::Literal::String(lit)) => Ok(LiteralPattern::String(Pattern::Specific(
+                InStr::from(lit.value()),
+            ))),
+            Ok(litrs::Literal::Integer(lit)) => {
+                Ok(LiteralPattern::Integer(Pattern::Specific(IntLit {
+                    raw: sym,
+                    lit,
+                })))
+            }
+            Ok(litrs::Literal::Float(lit)) => {
+                Ok(LiteralPattern::Float(Pattern::Specific(FloatLit {
+                    raw: sym,
+                    lit,
+                })))
+            }
+            Ok(litrs::Literal::Byte(lit)) => Ok(LiteralPattern::Byte(Pattern::Specific(ByteLit {
+                raw: sym,
+                lit,
+            }))),
+            Ok(litrs::Literal::ByteString(lit)) => {
+                let value: Interned<&[u8]> = Interned::from(lit.value());
+                Ok(LiteralPattern::ByteString(Pattern::Specific(
+                    ByteStringLit {
+                        raw: sym,
+                        value,
+                        is_raw_byte_string: lit.is_raw_byte_string(),
+                    },
+                )))
+            }
+            Err(err) => Err(err),
+        }
+    }
 }
 
 impl Matches<LiteralPattern> for Literal {
@@ -191,4 +237,16 @@ macro_rules! pat {
     (())             => { $crate::TokenPattern::Delimiter($crate::Delimiter::Paren) };
     ({})             => { $crate::TokenPattern::Delimiter($crate::Delimiter::Brace) };
     ([])             => { $crate::TokenPattern::Delimiter($crate::Delimiter::Bracket) };
+}
+
+#[test]
+fn test_token_matches() {
+    assert!(
+        t![true].matches(TokenPattern::Literal(LiteralPattern::BoolLit(
+            Pattern::Wildcard
+        )))
+    );
+    assert!(t![false].matches(pat![!bool]));
+    assert!(!t![struct].matches(pat![!bool]));
+    assert!(!t![false].matches(pat![true]));
 }
