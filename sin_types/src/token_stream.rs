@@ -13,11 +13,11 @@ impl Spanned for TokenStream {
 }
 
 impl TokenStream {
-    pub fn iter(&self) -> TSIterator {
+    pub fn iter<T: Default + Clone>(&self) -> TSIterator<'_, T> {
         TSIterator {
             cursor: 0,
             tokens: &self.tokens,
-            state: (),
+            state: T::default(),
         }
     }
 
@@ -73,7 +73,8 @@ pub trait Peekable<T>: Iterator<Item = T> {
     fn peek(&self) -> Option<T>;
 }
 
-pub struct TSIterator<'a, T = ()> {
+#[derive(Clone)]
+pub struct TSIterator<'a, T: Default + Clone = ()> {
     cursor: usize,
     tokens: &'a Vec<TokenTree>,
     /// Specified by `T`, can be optionally used to keep track of state information while
@@ -81,7 +82,7 @@ pub struct TSIterator<'a, T = ()> {
     pub state: T,
 }
 
-impl<'a> Iterator for TSIterator<'a> {
+impl<'a, T: Default + Clone> Iterator for TSIterator<'a, T> {
     type Item = TokenTree;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -93,8 +94,8 @@ impl<'a> Iterator for TSIterator<'a> {
     }
 }
 
-impl<'a> TSIterator<'a> {
-    pub fn peek_n(&self, n: isize) -> Option<TokenTree> {
+impl<'a, T: Default + Clone> Peekable<TokenTree> for TSIterator<'a, T> {
+    fn peek_n(&self, n: isize) -> Option<TokenTree> {
         let idx = self.cursor as isize + n;
         if idx < 0 {
             return None;
@@ -102,19 +103,12 @@ impl<'a> TSIterator<'a> {
         self.tokens.get(idx as usize).cloned()
     }
 
-    pub fn peek(&self) -> Option<TokenTree> {
+    fn peek(&self) -> Option<TokenTree> {
         self.tokens.get(self.cursor + 1).cloned()
-    }
-
-    pub fn matches_peek(&self, _token: Token) -> bool {
-        match self.peek() {
-            Some(_peeked_token) => todo!(),
-            None => todo!(),
-        }
     }
 }
 
-impl<'a> From<&'a TokenStream> for TSIterator<'a> {
+impl<'a, T: Default + Clone> From<&'a TokenStream> for TSIterator<'a, T> {
     fn from(value: &'a TokenStream) -> Self {
         value.iter()
     }
