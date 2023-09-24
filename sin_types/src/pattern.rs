@@ -121,6 +121,33 @@ impl Matches<LiteralPattern> for Literal {
     }
 }
 
+impl From<Literal> for LiteralPattern {
+    fn from(lit: Literal) -> Self {
+        match lit {
+            Literal::Bool(b) => LiteralPattern::Bool(Specific(b)),
+            Literal::Char(c) => LiteralPattern::Char(Specific(c)),
+            Literal::Integer(i) => LiteralPattern::Integer(Specific(i)),
+            Literal::Float(f) => LiteralPattern::Float(Specific(f)),
+            Literal::String(s) => LiteralPattern::String(Specific(s)),
+            Literal::Byte(b) => LiteralPattern::Byte(Specific(b)),
+            Literal::ByteString(bs) => LiteralPattern::ByteString(Specific(bs)),
+        }
+    }
+}
+
+impl From<Token> for TokenPattern {
+    fn from(token: Token) -> Self {
+        match token {
+            Token::Ident(ident) => TokenPattern::Ident(Pattern::Specific(ident)),
+            Token::Literal(lit) => TokenPattern::Literal(lit.into()),
+            Token::Delimiter(delim) => TokenPattern::Delimiter(Specific(delim)),
+            Token::Punct(punct) => TokenPattern::Punct(Specific(punct)),
+            Token::Keyword(kw) => TokenPattern::Keyword(Specific(kw)),
+            Token::CustomKeyword(ckw) => TokenPattern::CustomKeyword(Specific(ckw)),
+        }
+    }
+}
+
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! pat {

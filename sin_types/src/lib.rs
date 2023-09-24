@@ -13,6 +13,7 @@ pub use parsing::*;
 pub mod traits;
 pub use traits::*;
 pub mod pattern;
+pub use pattern::Pattern::*;
 pub use pattern::*;
 
 pub mod util {
