@@ -50,7 +50,7 @@ impl Matches<TokenPattern> for Token {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum LiteralPattern {
-    BoolLit(Pattern<bool>),
+    Bool(Pattern<bool>),
     Char(Pattern<char>),
     Integer(Pattern<IntLit>),
     Float(Pattern<FloatLit>),
@@ -66,7 +66,7 @@ impl ParseLiteral for LiteralPattern {
         let sym = InStr::from(input.as_ref());
         match litrs::Literal::parse(sym.as_str()) {
             Ok(litrs::Literal::Bool(lit)) => {
-                Ok(LiteralPattern::BoolLit(Pattern::Specific(lit.value())))
+                Ok(LiteralPattern::Bool(Pattern::Specific(lit.value())))
             }
             Ok(litrs::Literal::Char(lit)) => {
                 Ok(LiteralPattern::Char(Pattern::Specific(lit.value())))
@@ -108,7 +108,7 @@ impl ParseLiteral for LiteralPattern {
 impl Matches<LiteralPattern> for Literal {
     fn matches(&self, pattern: LiteralPattern) -> bool {
         match (self, pattern) {
-            (Literal::Bool(b), LiteralPattern::BoolLit(pat)) => b.matches(pat),
+            (Literal::Bool(b), LiteralPattern::Bool(pat)) => b.matches(pat),
             (Literal::Char(c), LiteralPattern::Char(pat)) => c.matches(pat),
             (Literal::Integer(i), LiteralPattern::Integer(pat)) => i.matches(pat),
             (Literal::Float(f), LiteralPattern::Float(pat)) => f.matches(pat),
@@ -226,18 +226,19 @@ macro_rules! pat {
     ($lit:literal)   => { $crate::TokenPattern::Literal($crate::LiteralPattern::parse(stringify!($lit)).unwrap()) };
     (true)           => { $crate::TokenPattern::Literal($crate::LiteralPattern::BoolLit::True) };
     (false)          => { $crate::TokenPattern::Literal($crate::LiteralPattern::BoolLit::False) };
+    (!lit)           => { $crate::TokenPattern::Literal($crate::LiteralPattern::Wildcard) };
     (!kw)            => { $crate::TokenPattern::Keyword($crate::Pattern::Wildcard) };
     ($ident:ident)   => { $crate::TokenPattern::CustomKeyword($crate::Pattern::Specific($crate::InStr::from(stringify!($ident)))) };
 	(!ckw)		 	 => { $crate::TokenPattern::CustomKeyword($crate::Pattern::Wildcard) };
     (#$ident:ident)  => { $crate::TokenPattern::Ident($crate::Pattern::Specific($crate::InStr::from(stringify!($ident)))) };
 	(!ident)		 => { $crate::TokenPattern::Ident($crate::Pattern::Wildcard) };
-	(!float)		 => { $crate::TokenPattern::Literal($crate::LiteralPattern::FloatLit($crate::Pattern::Wildcard)) };
-	(!bool)		 	 => { $crate::TokenPattern::Literal($crate::LiteralPattern::BoolLit($crate::Pattern::Wildcard)) };
-	(!int)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::IntLit($crate::Pattern::Wildcard)) };
-	(!char)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::CharLit($crate::Pattern::Wildcard)) };
-	(!str)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::StringLit($crate::Pattern::Wildcard)) };
-	(!byte)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::ByteLit($crate::Pattern::Wildcard)) };
-	(!bytestr)		 => { $crate::TokenPattern::Literal($crate::LiteralPattern::ByteStringLit($crate::Pattern::Wildcard)) };
+	(!float)		 => { $crate::TokenPattern::Literal($crate::LiteralPattern::Float($crate::Pattern::Wildcard)) };
+	(!bool)		 	 => { $crate::TokenPattern::Literal($crate::LiteralPattern::Bool($crate::Pattern::Wildcard)) };
+	(!int)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::Integer($crate::Pattern::Wildcard)) };
+	(!char)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::Char($crate::Pattern::Wildcard)) };
+	(!str)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::String($crate::Pattern::Wildcard)) };
+	(!byte)			 => { $crate::TokenPattern::Literal($crate::LiteralPattern::Byte($crate::Pattern::Wildcard)) };
+	(!bytestr)		 => { $crate::TokenPattern::Literal($crate::LiteralPattern::ByteString($crate::Pattern::Wildcard)) };
     (!punct)         => { $crate::TokenPattern::Punct($crate::Pattern::Wildcard) };
     (!delim)         => { $crate::TokenPattern::Delimiter($crate::Pattern::Wildcard) };
     (())             => { $crate::TokenPattern::Delimiter($crate::Pattern::Specific($crate::Delimiter::Paren)) };
@@ -247,13 +248,26 @@ macro_rules! pat {
 
 #[test]
 fn test_token_matches() {
-    assert!(
-        t![true].matches(TokenPattern::Literal(LiteralPattern::BoolLit(
-            Pattern::Wildcard
-        )))
-    );
+    assert!(t![true].matches(TokenPattern::Literal(LiteralPattern::Bool(
+        Pattern::Wildcard
+    ))));
     assert!(t![false].matches(pat![!bool]));
     assert!(!t![struct].matches(pat![!bool]));
     assert!(!t![false].matches(pat![true]));
     assert!(t![static].matches(pat![static]));
+    assert!(t![()].matches(pat![()]));
+    assert!(!t![{}].matches(pat![[]]));
+    assert!(t![custom_keyword].matches(pat![custom_keyword]));
+    assert!(t![#my_ident].matches(pat![#my_ident]));
+    assert!(t![#my_other_ident].matches(pat![!ident]));
+    assert!(!t![some_keyword].matches(pat![!ident]));
+    assert!(t![some_keyword].matches(pat![!ckw]));
+    assert!(!t![some_keyword].matches(pat![!kw]));
+    assert!(t![override].matches(pat![!kw]));
+    assert!(t![33.75].matches(pat![!float]));
+    assert!(t![535].matches(pat![535]));
+    assert!(t![300_000_000].matches(pat![!int]));
+    assert!(t!["hey"].matches(pat![!lit]));
+    assert!(t![343894].matches(pat![!lit]));
+    assert!(t![false].matches(pat![!lit]));
 }
