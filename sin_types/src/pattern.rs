@@ -1,3 +1,5 @@
+use std::fmt::{Display, Write};
+
 use interned::Interned;
 
 use crate::*;
@@ -144,6 +146,42 @@ impl From<Token> for TokenPattern {
             Token::Punct(punct) => TokenPattern::Punct(Specific(punct)),
             Token::Keyword(kw) => TokenPattern::Keyword(Specific(kw)),
             Token::CustomKeyword(ckw) => TokenPattern::CustomKeyword(Specific(ckw)),
+        }
+    }
+}
+
+impl Display for LiteralPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LiteralPattern::Bool(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("bool literal"),
+            },
+            LiteralPattern::Char(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("char literal"),
+            },
+            LiteralPattern::Integer(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("integer literal"),
+            },
+            LiteralPattern::Float(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("float literal"),
+            },
+            LiteralPattern::String(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("string literal"),
+            },
+            LiteralPattern::Byte(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("byte literal"),
+            },
+            LiteralPattern::ByteString(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("byte string literal"),
+            },
+            LiteralPattern::Wildcard => f.write_str("literal"),
         }
     }
 }

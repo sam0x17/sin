@@ -10,8 +10,7 @@ pub struct ParseError {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 struct ErrorMessage {
-    start_span: Span,
-    end_span: Span,
+    span: Span,
     message: InStr,
 }
 
@@ -22,13 +21,13 @@ impl ParseError {
         }
     }
 
-    pub fn missing_token(&self, expected_token: Token, span: Span) -> Self {
+    pub fn expected_token(&self, expected: TokenPattern, found: Option<Token>, span: Span) -> Self {
         let mut this = self.clone();
-        this.messages.push(ErrorMessage {
-            start_span: span,
-            end_span: span,
-            message: format!("expected `{expected_token}`").into(),
-        });
+        let message = match found {
+            Some(found) => format!("expected `{expected}`, found `{found}`").into(),
+            None => format!("expected `{expected}`").into(),
+        };
+        this.messages.push(ErrorMessage { span, message });
         this
     }
 }
@@ -65,7 +64,7 @@ impl<'a, T: Default + Clone> Parser<'a, T> {
         &self.0.state
     }
 
-    pub fn current_span(&self) -> Span {
+    pub fn span(&self) -> Span {
         self.1
     }
 
@@ -74,22 +73,61 @@ impl<'a, T: Default + Clone> Parser<'a, T> {
     }
 }
 
+impl<'a, T: Default + Clone> From<TSIterator<'a, T>> for Parser<'a, T> {
+    fn from(value: TSIterator<'a, T>) -> Self {
+        Parser(value, Span::call_site())
+    }
+}
+
+impl<'a, T: Default + Clone> From<&TokenStream> for Parser<'a, T> {
+    fn from(value: &TokenStream) -> Self {
+        Parser(value.iter_with_state(), Span::call_site())
+    }
+}
+
 pub trait Parse: Sized {
-    fn parse<'a, T: Default + Clone>(input: Parser<'a, T>) -> ParseResult<Self>;
+    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self>;
 }
 
 pub struct Ident {
-    token_tree: TokenTree,
+    span: Span,
+    ident: InStr,
+}
+
+impl From<Ident> for Token {
+    fn from(value: Ident) -> Self {
+        Token::Ident(value.ident)
+    }
+}
+
+impl From<Ident> for TokenTree {
+    fn from(value: Ident) -> Self {
+        TokenTree::Leaf(Token::Ident(value.ident), value.span)
+    }
 }
 
 impl Parse for Ident {
-    fn parse<'a, T: Default + Clone>(input: Parser<'a, T>) -> ParseResult<Self> {
-        let mut input: Parser<'a, T> = input.into();
+    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
         let Some(token_tree) = input.next() else {
-            return Err(ParseError::new().missing_token(t![#ident], input.current_span()));
+            return Err(ParseError::new().expected_token(pat![!ident], None, input.span()));
         };
-        Ok(Ident {
-            token_tree: t![#hey].into(),
-        })
+        let TokenTree::Leaf(token, span) = token_tree else {
+            return Err(ParseError::new().expected_token(
+                pat![!ident],
+                Some(token_tree.into()),
+                input.span(),
+            ));
+        };
+        let Token::Ident(ident) = token else {
+            return Err(ParseError::new().expected_token(pat![!ident], Some(token), input.span()));
+        };
+        Ok(Ident { ident, span })
     }
+}
+
+#[test]
+fn test_parse_ident() {
+    let tokens: TokenStream = [TokenTree::Leaf(t![#my_ident], Span::call_site())][..].into();
+    let mut input: Parser = (&tokens).into();
+    let a: Ident = Ident::parse(&mut input).unwrap();
 }

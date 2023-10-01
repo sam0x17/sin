@@ -13,11 +13,19 @@ impl Spanned for TokenStream {
 }
 
 impl TokenStream {
-    pub fn iter<T: Default + Clone>(&self) -> TSIterator<'_, T> {
+    pub fn iter_with_state<T: Default + Clone>(&self) -> TSIterator<'_, T> {
         TSIterator {
             cursor: 0,
             tokens: &self.tokens,
             state: T::default(),
+        }
+    }
+
+    pub fn iter(&self) -> TSIterator<'_, ()> {
+        TSIterator {
+            cursor: 0,
+            tokens: &self.tokens,
+            state: (),
         }
     }
 
@@ -110,6 +118,6 @@ impl<'a, T: Default + Clone> Peekable<TokenTree> for TSIterator<'a, T> {
 
 impl<'a, T: Default + Clone> From<&'a TokenStream> for TSIterator<'a, T> {
     fn from(value: &'a TokenStream) -> Self {
-        value.iter()
+        value.iter_with_state()
     }
 }
