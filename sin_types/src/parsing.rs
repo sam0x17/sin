@@ -24,8 +24,8 @@ impl ParseError {
     pub fn expected_token(&self, expected: TokenPattern, found: Option<Token>, span: Span) -> Self {
         let mut this = self.clone();
         let message = match found {
-            Some(found) => format!("expected `{expected}`, found `{found}`").into(),
-            None => format!("expected `{expected}`").into(),
+            Some(found) => format!("expected {expected}, found `{found}`").into(),
+            None => format!("expected {expected}").into(),
         };
         this.messages.push(ErrorMessage { span, message });
         this
@@ -79,8 +79,8 @@ impl<'a, T: Default + Clone> From<TSIterator<'a, T>> for Parser<'a, T> {
     }
 }
 
-impl<'a, T: Default + Clone> From<&TokenStream> for Parser<'a, T> {
-    fn from(value: &TokenStream) -> Self {
+impl<'a, T: Default + Clone> From<&'a TokenStream> for Parser<'a, T> {
+    fn from(value: &'a TokenStream) -> Self {
         Parser(value.iter_with_state(), Span::call_site())
     }
 }

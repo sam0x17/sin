@@ -11,6 +11,10 @@ pub enum Pattern<T> {
     Wildcard,
 }
 
+pub trait PatternName {
+    fn pattern_name(&self) -> &'static str;
+}
+
 impl<T: PartialEq> Matches<Pattern<T>> for T {
     fn matches(&self, pattern: Pattern<T>) -> bool {
         match pattern {
@@ -182,6 +186,38 @@ impl Display for LiteralPattern {
                 Wildcard => f.write_str("byte string literal"),
             },
             LiteralPattern::Wildcard => f.write_str("literal"),
+        }
+    }
+}
+
+impl Display for TokenPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenPattern::Ident(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("ident"),
+            },
+            TokenPattern::Literal(val) => val.fmt(f),
+            TokenPattern::Delimiter(val) => match val {
+                Specific(val) => match val {
+                    Delimiter::Brace => f.write_str("brace"),
+                    Delimiter::Bracket => f.write_str("bracket"),
+                    Delimiter::Paren => f.write_str("parenthesis"),
+                },
+                Wildcard => f.write_str("delimiter"),
+            },
+            TokenPattern::Punct(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("punctuation"),
+            },
+            TokenPattern::Keyword(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("keyword"),
+            },
+            TokenPattern::CustomKeyword(val) => match val {
+                Specific(val) => f.write_fmt(format_args!("`{val}`")),
+                Wildcard => f.write_str("custom keyword"),
+            },
         }
     }
 }
