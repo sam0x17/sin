@@ -14,6 +14,18 @@ struct ErrorMessage {
     message: InStr,
 }
 
+impl<'a> PartialEq<&'a str> for ErrorMessage {
+    fn eq(&self, other: &&str) -> bool {
+        self.message == *other
+    }
+}
+
+impl PartialEq<str> for ErrorMessage {
+    fn eq(&self, other: &str) -> bool {
+        self.message == other
+    }
+}
+
 impl ParseError {
     pub fn new() -> ParseError {
         ParseError {
@@ -90,9 +102,21 @@ impl<'a, T: Default + Clone> From<&'a TokenStream> for Parser<'a, T> {
 }
 
 pub trait Parse:
-    Sized + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug
+    Sized
+    + Clone
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + core::hash::Hash
+    + core::fmt::Debug
+    + ToTokenStream
 {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self>;
+}
+
+pub trait ToTokenStream: Sized + Clone + core::fmt::Debug {
+    fn to_token_stream(&self) -> TokenStream;
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -138,16 +162,25 @@ impl Parse for Ident {
     }
 }
 
+impl ToTokenStream for Ident {
+    fn to_token_stream(&self) -> TokenStream {
+        [TokenTree::Leaf((*self).into(), self.span)][..].into()
+    }
+}
+
 #[test]
 fn test_parse_ident() {
     let tokens: TokenStream = [
         TokenTree::Leaf(t![#my_ident], Span::call_site()),
         TokenTree::Leaf(t![#another_ident], Span::call_site()),
+        TokenTree::Leaf(t![,], Span::call_site()),
     ][..]
         .into();
     let mut input: Parser = (&tokens).into();
     let a = Ident::parse(&mut input).unwrap();
     assert_eq!(a, "my_ident");
     let b: Ident = input.parse().unwrap();
-    assert_eq!(b, "another_ident")
+    assert_eq!(b, "another_ident");
+    let err = Ident::parse(&mut input).unwrap_err();
+    assert_eq!(err.messages.first().unwrap(), "expected ident, found `,`");
 }
