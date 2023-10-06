@@ -94,11 +94,12 @@ impl<'a, T: Default + Clone> Iterator for TSIterator<'a, T> {
     type Item = TokenTree;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.cursor += 1;
         if self.cursor >= self.tokens.len() {
             return None;
         }
-        Some(self.tokens[self.cursor].clone())
+        let ret = Some(self.tokens[self.cursor].clone());
+        self.cursor += 1;
+        ret
     }
 }
 
