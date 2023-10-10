@@ -38,6 +38,7 @@ pub enum TokenPattern {
     Punct(Pattern<Punct>),
     Keyword(Pattern<Keyword>),
     CustomKeyword(Pattern<InStr>),
+    Nothing,
 }
 
 impl Matches<TokenPattern> for Token {
@@ -218,6 +219,7 @@ impl Display for TokenPattern {
                 Specific(val) => f.write_fmt(format_args!("`{val}`")),
                 Wildcard => f.write_str("custom keyword"),
             },
+            TokenPattern::Nothing => f.write_str("nothing"),
         }
     }
 }
@@ -225,6 +227,7 @@ impl Display for TokenPattern {
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! pat {
+    ()               => { $crate::TokenPattern::Nothing };
     (abstract)       => { $crate::TokenPattern::Keyword($crate::Pattern::Specific($crate::Keyword::Abstract)) };
     (as)             => { $crate::TokenPattern::Keyword($crate::Pattern::Specific($crate::Keyword::As)) };
     (async)          => { $crate::TokenPattern::Keyword($crate::Pattern::Specific($crate::Keyword::Async)) };
@@ -371,4 +374,5 @@ fn test_token_matches() {
     assert!(t!["hey"].matches(pat![!lit]));
     assert!(t![343894].matches(pat![!lit]));
     assert!(t![false].matches(pat![!lit]));
+    assert!(!t![something].matches(TokenPattern::Nothing));
 }

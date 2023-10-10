@@ -52,6 +52,14 @@ impl TokenStream {
     pub fn push(&mut self, token_tree: impl Into<TokenTree>) {
         self.tokens.push(token_tree.into());
     }
+
+    pub fn to_parser(&self) -> Parser {
+        Parser::new(self.iter(), self.span)
+    }
+
+    pub fn to_state_parser<'a, T: Default + Clone>(&'a self) -> Parser<'a, T> {
+        Parser::new(self.iter_with_state(), self.span)
+    }
 }
 
 impl From<TokenTree> for TokenStream {

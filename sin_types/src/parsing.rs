@@ -1,4 +1,5 @@
 use crate::{
+    span::Spanned,
     token_stream::{Peekable, TSIterator},
     *,
 };
@@ -68,6 +69,10 @@ impl<'a, T: Default + Clone> Peekable<TokenTree> for Parser<'a, T> {
 }
 
 impl<'a, T: Default + Clone> Parser<'a, T> {
+    pub fn new(iter: TSIterator<'a, T>, span: Span) -> Self {
+        Parser(iter, span)
+    }
+
     pub fn state_mut(&mut self) -> &mut T {
         &mut self.0.state
     }
@@ -97,26 +102,47 @@ impl<'a, T: Default + Clone> From<TSIterator<'a, T>> for Parser<'a, T> {
 
 impl<'a, T: Default + Clone> From<&'a TokenStream> for Parser<'a, T> {
     fn from(value: &'a TokenStream) -> Self {
-        Parser(value.iter_with_state(), Span::call_site())
+        value.to_state_parser()
     }
 }
 
 pub trait Parse:
-    Sized
-    + Clone
-    + PartialEq
-    + Eq
-    + PartialOrd
-    + Ord
-    + core::hash::Hash
-    + core::fmt::Debug
-    + ToTokenStream
+    Sized + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug + ToTokens
 {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self>;
 }
 
-pub trait ToTokenStream: Sized + Clone + core::fmt::Debug {
+pub trait ParseTokens: Parse {
+    fn parse(tokens: impl Into<TokenStream>) -> ParseResult<Self> {
+        let tokens = tokens.into();
+        let mut input: Parser = tokens.to_parser();
+        let parsed = input.parse::<Self>()?;
+        input.parse::<Nothing>()?;
+        Ok(parsed)
+    }
+}
+
+pub trait ToTokens: Sized + Clone + core::fmt::Debug {
     fn to_token_stream(&self) -> TokenStream;
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Nothing;
+
+impl ToTokens for Nothing {
+    fn to_token_stream(&self) -> TokenStream {
+        TokenStream::new()
+    }
+}
+
+impl Parse for Nothing {
+    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
+        let Some(token) = input.next() else {
+            return Ok(Nothing {});
+        };
+        let span = token.span();
+        return Err(ParseError::new().expected_token(pat![], Some(token.into()), span));
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -162,10 +188,21 @@ impl Parse for Ident {
     }
 }
 
-impl ToTokenStream for Ident {
+impl ToTokens for Ident {
     fn to_token_stream(&self) -> TokenStream {
         [TokenTree::Leaf((*self).into(), self.span)][..].into()
     }
+}
+
+#[test]
+fn test_parse_nothing() {
+    let empty = TokenStream::new();
+    let mut input: Parser = empty.to_parser();
+    assert!(input.parse::<Nothing>().is_ok());
+    let tokens: TokenStream =
+        (&[TokenTree::Leaf((t![some_token]).into(), Span::call_site())][..]).into();
+    let mut input: Parser = tokens.to_parser();
+    assert!(input.parse::<Nothing>().is_err());
 }
 
 #[test]
