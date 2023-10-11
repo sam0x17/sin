@@ -22,9 +22,6 @@
 //! Sin is a work in progress. The first usable version will be 0.1.0.
 //!
 
-pub mod parsing;
-pub use parsing::*;
-
 pub use sin_types as types;
 pub use sin_types::*;
 
