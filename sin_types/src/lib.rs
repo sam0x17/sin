@@ -4,7 +4,7 @@ mod token;
 pub use token::*;
 pub mod span;
 pub use interned::{InPath, InStr};
-pub use span::Span;
+pub use span::{Span, Spanned};
 pub mod token_stream;
 pub use token_stream::TokenStream;
 pub mod parsing;
@@ -15,6 +15,8 @@ pub use traits::*;
 pub mod pattern;
 pub use pattern::Pattern::*;
 pub use pattern::*;
+pub mod parsed;
+pub use parsed::*;
 
 pub mod util {
     pub const fn assert_sync<T>()

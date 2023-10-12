@@ -1,18 +1,23 @@
 use crate::{
-    span::Spanned,
     token_stream::{Peekable, TSIterator},
     *,
 };
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ParseError {
-    messages: Vec<ErrorMessage>,
+    pub messages: Vec<ErrorMessage>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-struct ErrorMessage {
-    span: Span,
-    message: InStr,
+pub struct ErrorMessage {
+    pub span: Span,
+    pub message: InStr,
+}
+
+impl Spanned for ErrorMessage {
+    fn span(&self) -> Span {
+        self.span
+    }
 }
 
 impl<'a> PartialEq<&'a str> for ErrorMessage {
@@ -110,10 +115,8 @@ pub trait Parse:
     Sized + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug + ToTokens
 {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self>;
-}
 
-pub trait ParseTokens: Parse {
-    fn parse(tokens: impl Into<TokenStream>) -> ParseResult<Self> {
+    fn parse_tokens(tokens: impl Into<TokenStream>) -> ParseResult<Self> {
         let tokens = tokens.into();
         let mut input: Parser = tokens.to_parser();
         let parsed = input.parse::<Self>()?;
@@ -124,100 +127,4 @@ pub trait ParseTokens: Parse {
 
 pub trait ToTokens: Sized + Clone + core::fmt::Debug {
     fn to_token_stream(&self) -> TokenStream;
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Nothing;
-
-impl ToTokens for Nothing {
-    fn to_token_stream(&self) -> TokenStream {
-        TokenStream::new()
-    }
-}
-
-impl Parse for Nothing {
-    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
-        let Some(token) = input.next() else {
-            return Ok(Nothing {});
-        };
-        let span = token.span();
-        return Err(ParseError::new().expected_token(pat![], Some(token.into()), span));
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Ident {
-    span: Span,
-    ident: InStr,
-}
-
-impl<'a, T: AsRef<str>> PartialEq<T> for Ident {
-    fn eq(&self, other: &T) -> bool {
-        self.ident == other.as_ref()
-    }
-}
-
-impl From<Ident> for Token {
-    fn from(value: Ident) -> Self {
-        Token::Ident(value.ident)
-    }
-}
-
-impl From<Ident> for TokenTree {
-    fn from(value: Ident) -> Self {
-        TokenTree::Leaf(Token::Ident(value.ident), value.span)
-    }
-}
-
-impl Parse for Ident {
-    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
-        let Some(token_tree) = input.next() else {
-            return Err(ParseError::new().expected_token(pat![!ident], None, input.span()));
-        };
-        let TokenTree::Leaf(token, span) = token_tree else {
-            return Err(ParseError::new().expected_token(
-                pat![!ident],
-                Some(token_tree.into()),
-                input.span(),
-            ));
-        };
-        let Token::Ident(ident) = token else {
-            return Err(ParseError::new().expected_token(pat![!ident], Some(token), input.span()));
-        };
-        Ok(Ident { ident, span })
-    }
-}
-
-impl ToTokens for Ident {
-    fn to_token_stream(&self) -> TokenStream {
-        [TokenTree::Leaf((*self).into(), self.span)][..].into()
-    }
-}
-
-#[test]
-fn test_parse_nothing() {
-    let empty = TokenStream::new();
-    let mut input: Parser = empty.to_parser();
-    assert!(input.parse::<Nothing>().is_ok());
-    let tokens: TokenStream =
-        (&[TokenTree::Leaf((t![some_token]).into(), Span::call_site())][..]).into();
-    let mut input: Parser = tokens.to_parser();
-    assert!(input.parse::<Nothing>().is_err());
-}
-
-#[test]
-fn test_parse_ident() {
-    let tokens: TokenStream = [
-        TokenTree::Leaf(t![#my_ident], Span::call_site()),
-        TokenTree::Leaf(t![#another_ident], Span::call_site()),
-        TokenTree::Leaf(t![,], Span::call_site()),
-    ][..]
-        .into();
-    let mut input: Parser = (&tokens).into();
-    let a = Ident::parse(&mut input).unwrap();
-    assert_eq!(a, "my_ident");
-    let b: Ident = input.parse().unwrap();
-    assert_eq!(b, "another_ident");
-    let err = Ident::parse(&mut input).unwrap_err();
-    assert_eq!(err.messages.first().unwrap(), "expected ident, found `,`");
 }
