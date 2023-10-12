@@ -2,8 +2,24 @@ use super::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Ident {
-    span: Span,
-    ident: InStr,
+    pub span: Span,
+    pub ident: InStr,
+}
+
+impl Ident {
+    pub fn new(string: impl Into<InStr>) -> Self {
+        Ident {
+            span: Span::call_site(),
+            ident: string.into(),
+        }
+    }
+
+    pub fn new_spanned(span: Span, string: impl Into<InStr>) -> Self {
+        Ident {
+            span,
+            ident: string.into(),
+        }
+    }
 }
 
 impl<'a, T: AsRef<str>> PartialEq<T> for Ident {
