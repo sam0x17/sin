@@ -9,6 +9,12 @@ impl ToTokens for Nothing {
     }
 }
 
+impl Spanned for Nothing {
+    fn span(&self) -> Span {
+        Span::call_site()
+    }
+}
+
 impl Parse for Nothing {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
         let Some(token) = input.next() else {

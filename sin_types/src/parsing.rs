@@ -144,7 +144,16 @@ impl<'a, T: Default + Clone> From<&'a TokenStream> for Parser<'a, T> {
 }
 
 pub trait Parse:
-    Sized + Clone + PartialEq + Eq + PartialOrd + Ord + core::hash::Hash + core::fmt::Debug + ToTokens
+    Sized
+    + Clone
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + core::hash::Hash
+    + core::fmt::Debug
+    + ToTokens
+    + Spanned
 {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self>;
 

@@ -24,6 +24,12 @@ impl From<Ident> for TokenTree {
     }
 }
 
+impl Spanned for Ident {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
 impl Parse for Ident {
     fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
         let Some(token_tree) = input.next() else {
