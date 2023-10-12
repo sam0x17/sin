@@ -1,6 +1,6 @@
 use crate::{span::Spanned, *};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub struct TokenStream {
     tokens: Vec<TokenTree>,
     span: Span,

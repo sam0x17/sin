@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub struct Nothing;
 
 impl ToTokens for Nothing {

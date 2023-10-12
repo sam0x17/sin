@@ -296,3 +296,9 @@ impl Span {
         Span1::from_id(id).into()
     }
 }
+
+impl Default for Span {
+    fn default() -> Self {
+        Span::call_site()
+    }
+}
