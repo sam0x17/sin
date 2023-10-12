@@ -130,3 +130,15 @@ impl<'a, T: Default + Clone> From<&'a TokenStream> for TSIterator<'a, T> {
         value.iter_with_state()
     }
 }
+
+impl AsRef<TokenStream> for TokenStream {
+    fn as_ref(&self) -> &TokenStream {
+        self
+    }
+}
+
+impl From<&TokenStream> for TokenStream {
+    fn from(value: &TokenStream) -> Self {
+        value.clone()
+    }
+}

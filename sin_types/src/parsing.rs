@@ -125,6 +125,16 @@ pub trait Parse:
     }
 }
 
+impl<P: Parse> From<P> for TokenStream {
+    fn from(value: P) -> Self {
+        value.to_token_stream()
+    }
+}
+
 pub trait ToTokens: Sized + Clone + core::fmt::Debug {
     fn to_token_stream(&self) -> TokenStream;
+}
+
+pub fn parse<T: Parse>(tokens: impl Into<TokenStream>) -> ParseResult<T> {
+    T::parse_tokens(tokens)
 }

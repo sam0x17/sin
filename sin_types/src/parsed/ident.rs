@@ -67,15 +67,20 @@ fn test_parse_ident() {
 }
 
 #[test]
-fn test_parse_tokens() {
+fn test_ident_parse_tokens() {
     let tokens: TokenStream = [TokenTree::Leaf(t![#my_ident], Span::call_site())][..].into();
-    assert!(Ident::parse_tokens(tokens).is_ok());
+    assert!(Ident::parse_tokens(&tokens).is_ok());
+    let ident = Ident::parse_tokens(tokens).unwrap();
+    assert_eq!(ident.ident, "my_ident");
+    assert!(ident.span.is_fallback());
+    assert_eq!(ident, "my_ident");
+    assert!(Ident::parse_tokens(ident).is_ok());
     let tokens: TokenStream = [
         TokenTree::Leaf(t![#my_ident], Span::call_site()),
         TokenTree::Leaf(t![#another_ident], Span::call_site()),
     ][..]
         .into();
-    assert!(Ident::parse_tokens(tokens).is_err());
+    assert!(Ident::parse_tokens(&tokens).is_err());
     let tokens: TokenStream = [TokenTree::Leaf(t![test], Span::call_site())][..].into();
-    assert!(Ident::parse_tokens(tokens).is_err());
+    assert!(Ident::parse_tokens(&tokens).is_err());
 }
