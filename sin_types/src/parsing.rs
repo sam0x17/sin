@@ -3,15 +3,47 @@ use crate::{
     *,
 };
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ParseError {
     pub messages: Vec<ErrorMessage>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+impl core::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for message in &self.messages {
+            message.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl core::fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for message in &self.messages {
+            message.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ErrorMessage {
     pub span: Span,
     pub message: InStr,
+}
+
+impl core::fmt::Display for ErrorMessage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_fmt(format_args!("error: {}", self.message))?;
+        Ok(())
+    }
+}
+
+impl core::fmt::Debug for ErrorMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("error: {}", self.message))?;
+        Ok(())
+    }
 }
 
 impl Spanned for ErrorMessage {

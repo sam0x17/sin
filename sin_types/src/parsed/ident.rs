@@ -83,4 +83,6 @@ fn test_ident_parse_tokens() {
     assert!(Ident::parse_tokens(&tokens).is_err());
     let tokens: TokenStream = [TokenTree::Leaf(t![test], Span::call_site())][..].into();
     assert!(Ident::parse_tokens(&tokens).is_err());
+    let tokens: TokenStream = [TokenTree::Leaf(t![struct], Span::call_site())][..].into();
+    assert!(parse::<Ident>(tokens).is_err());
 }
