@@ -62,12 +62,6 @@ impl TokenStream {
     }
 }
 
-impl From<TokenTree> for TokenStream {
-    fn from(value: TokenTree) -> Self {
-        TokenStream::from_tokens(&[value])
-    }
-}
-
 impl From<&[TokenTree]> for TokenStream {
     fn from(value: &[TokenTree]) -> Self {
         TokenStream::from_tokens(value)

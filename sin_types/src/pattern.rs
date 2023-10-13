@@ -39,6 +39,7 @@ pub enum TokenPattern {
     Keyword(Pattern<Keyword>),
     CustomKeyword(Pattern<InStr>),
     Nothing,
+    Wildcard,
 }
 
 impl Matches<TokenPattern> for Token {
@@ -50,6 +51,7 @@ impl Matches<TokenPattern> for Token {
             (Token::Punct(punct), TokenPattern::Punct(pat)) => punct.matches(pat),
             (Token::Keyword(kw), TokenPattern::Keyword(pat)) => kw.matches(pat),
             (Token::CustomKeyword(ckw), TokenPattern::CustomKeyword(pat)) => ckw.matches(pat),
+            (_, TokenPattern::Wildcard) => true,
             _ => false,
         }
     }
@@ -220,6 +222,7 @@ impl Display for TokenPattern {
                 Wildcard => f.write_str("custom keyword"),
             },
             TokenPattern::Nothing => f.write_str("nothing"),
+            TokenPattern::Wildcard => f.write_str("token"),
         }
     }
 }
@@ -345,6 +348,7 @@ macro_rules! pat {
 	(!bytestr)		 => { $crate::TokenPattern::Literal($crate::LiteralPattern::ByteString($crate::Pattern::Wildcard)) };
     (!punct)         => { $crate::TokenPattern::Punct($crate::Pattern::Wildcard) };
     (!delim)         => { $crate::TokenPattern::Delimiter($crate::Pattern::Wildcard) };
+    (!token)         => { $crate::TokenPattern::Wildcard };
     (())             => { $crate::TokenPattern::Delimiter($crate::Pattern::Specific($crate::Delimiter::Paren)) };
     ({})             => { $crate::TokenPattern::Delimiter($crate::Pattern::Specific($crate::Delimiter::Brace)) };
     ([])             => { $crate::TokenPattern::Delimiter($crate::Pattern::Specific($crate::Delimiter::Bracket)) };
@@ -375,4 +379,5 @@ fn test_token_matches() {
     assert!(t![343894].matches(pat![!lit]));
     assert!(t![false].matches(pat![!lit]));
     assert!(!t![something].matches(TokenPattern::Nothing));
+    assert!(t![false].matches(TokenPattern::Wildcard));
 }

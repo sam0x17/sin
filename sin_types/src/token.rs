@@ -22,6 +22,25 @@ impl Spanned for TokenTree {
     }
 }
 
+impl ToTokens for TokenTree {
+    fn to_token_stream(&self) -> TokenStream {
+        self.clone().into()
+    }
+}
+
+impl Parse for TokenTree {
+    fn parse<'a, T: Default + Clone>(input: &mut Parser<'a, T>) -> ParseResult<Self> {
+        let Some(token) = input.next() else {
+            return Err(ParseError::new().expected_token(
+                TokenPattern::Wildcard,
+                None,
+                input.span(),
+            ));
+        };
+        Ok(token.into())
+    }
+}
+
 impl From<Token> for TokenTree {
     fn from(value: Token) -> Self {
         match value {
