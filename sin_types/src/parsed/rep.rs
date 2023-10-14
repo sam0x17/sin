@@ -27,11 +27,20 @@ impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
             span: input.span(),
         };
         loop {
-            if COMPACT {
-                todo!();
-            } else {
-                let item = input.parse::<T>()?;
+            if input.peek().is_none() {
+                break;
             }
+            if COMPACT && input.peek_parse::<T>().is_err() {
+                break;
+            }
+            ret.items.push(input.parse::<T>()?);
+            if input.peek().is_none() {
+                break;
+            }
+            if COMPACT && input.peek_parse::<S>().is_err() {
+                break;
+            }
+            ret.seps.push(input.parse::<S>()?);
         }
         Ok(ret)
     }

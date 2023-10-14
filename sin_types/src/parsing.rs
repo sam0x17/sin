@@ -126,8 +126,13 @@ impl<'a, T: Default + Clone> Parser<'a, T> {
         self.1 = span
     }
 
-    pub fn parse<I: Parse>(&mut self) -> ParseResult<I> {
-        I::parse(self)
+    pub fn parse<P: Parse>(&mut self) -> ParseResult<P> {
+        P::parse(self)
+    }
+
+    pub fn peek_parse<P: Parse>(&self) -> ParseResult<P> {
+        let mut fork = self.clone();
+        P::parse(&mut fork)
     }
 }
 

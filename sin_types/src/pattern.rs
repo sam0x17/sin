@@ -4,11 +4,21 @@ use interned::Interned;
 
 use crate::*;
 
+pub trait ToWildcard {
+    fn to_wildcard(&self) -> Self;
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[must_use]
 pub enum Pattern<T> {
     Specific(T),
     Wildcard,
+}
+
+impl<T> ToWildcard for Pattern<T> {
+    fn to_wildcard(&self) -> Self {
+        Self::Wildcard
+    }
 }
 
 pub trait PatternName {
@@ -42,6 +52,20 @@ pub enum TokenPattern {
     Wildcard,
 }
 
+impl ToWildcard for TokenPattern {
+    fn to_wildcard(&self) -> Self {
+        match self {
+            TokenPattern::Ident(val) => TokenPattern::Ident(val.to_wildcard()),
+            TokenPattern::Literal(val) => TokenPattern::Literal(val.to_wildcard()),
+            TokenPattern::Delimiter(val) => TokenPattern::Delimiter(val.to_wildcard()),
+            TokenPattern::Punct(val) => TokenPattern::Punct(val.to_wildcard()),
+            TokenPattern::Keyword(val) => TokenPattern::Keyword(val.to_wildcard()),
+            TokenPattern::CustomKeyword(val) => TokenPattern::CustomKeyword(val.to_wildcard()),
+            TokenPattern::Nothing | TokenPattern::Wildcard => TokenPattern::Wildcard,
+        }
+    }
+}
+
 impl Matches<TokenPattern> for Token {
     fn matches(&self, pattern: TokenPattern) -> bool {
         match (self, pattern) {
@@ -68,6 +92,21 @@ pub enum LiteralPattern {
     ByteString(Pattern<ByteStringLit>),
     /// Matches any valid literal
     Wildcard,
+}
+
+impl ToWildcard for LiteralPattern {
+    fn to_wildcard(&self) -> Self {
+        match self {
+            LiteralPattern::Bool(val) => LiteralPattern::Bool(val.to_wildcard()),
+            LiteralPattern::Char(val) => LiteralPattern::Char(val.to_wildcard()),
+            LiteralPattern::Integer(val) => LiteralPattern::Integer(val.to_wildcard()),
+            LiteralPattern::Float(val) => LiteralPattern::Float(val.to_wildcard()),
+            LiteralPattern::String(val) => LiteralPattern::String(val.to_wildcard()),
+            LiteralPattern::Byte(val) => LiteralPattern::Byte(val.to_wildcard()),
+            LiteralPattern::ByteString(val) => LiteralPattern::ByteString(val.to_wildcard()),
+            LiteralPattern::Wildcard => LiteralPattern::Wildcard,
+        }
+    }
 }
 
 impl ParseLiteral for LiteralPattern {

@@ -152,6 +152,39 @@ impl From<Span> for SpanData {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum JoinError {
+    MissingSourceA,
+    MissingSourceB,
+    SourceMismatch,
+    OutOfOrder,
+}
+
+impl core::fmt::Display for JoinError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingSourceA => {
+                f.write_str("cannot join because the first span has no defined source file/context")
+            }
+            Self::MissingSourceB => f.write_str(
+                "cannot join because the second span has no defined source file/context",
+            ),
+            Self::SourceMismatch => f.write_str(
+                "cannot join because these spans come from different source files/contexts",
+            ),
+            Self::OutOfOrder => {
+                f.write_str("cannot join because the second span comes before the first span")
+            }
+        }
+    }
+}
+
+impl core::fmt::Debug for JoinError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
 impl Span {
     /// Returns the underlying [`SpanData`] used to represent this [`Span`].
     ///
@@ -245,6 +278,49 @@ impl Span {
             }
             .into(),
         )
+    }
+
+    /// Joins two [`Span`]s originating from the same source file/context together into a
+    /// single span spanning both.
+    ///
+    /// Returns a [`JoinError`] if a legal join cannot be performed.
+    pub fn join(&self, other: Span) -> Result<Span, JoinError> {
+        let a = self.to_fallback();
+        let b = other.to_fallback();
+        let SpanData::Fallback {
+            source_text: Some(a_excerpt),
+            ..
+        } = a.span_data()
+        else {
+            return Err(JoinError::MissingSourceA);
+        };
+        let SpanData::Fallback {
+            source_text: Some(b_excerpt),
+            ..
+        } = b.span_data()
+        else {
+            return Err(JoinError::MissingSourceB);
+        };
+
+        if a_excerpt.source != b_excerpt.source {
+            return Err(JoinError::SourceMismatch);
+        }
+
+        if b_excerpt.start < a_excerpt.start {
+            return Err(JoinError::OutOfOrder);
+        }
+
+        Ok(Span(
+            SpanData::Fallback {
+                style: SpanStyle::Normal,
+                source_text: Some(SourceExcerpt {
+                    start: a_excerpt.start,
+                    end: b_excerpt.end,
+                    source: a_excerpt.source,
+                }),
+            }
+            .into(),
+        ))
     }
 
     /// Returns `true` if this [`Span`] is using the fallback implementation rather than [`proc_macro::Span`].
