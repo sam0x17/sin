@@ -6,7 +6,7 @@ pub mod span;
 pub use interned::{InPath, InStr};
 pub use span::{Span, Spanned};
 pub mod token_stream;
-pub use token_stream::TokenStream;
+pub use token_stream::*;
 pub mod parsing;
 pub mod source;
 pub use parsing::*;

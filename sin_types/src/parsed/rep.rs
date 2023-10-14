@@ -1,27 +1,39 @@
 use super::*;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Debug)]
-pub struct Rep<T: Parse, S: Parse = Nothing> {
+pub struct Rep<T: Parse, S: Parse = NoOp, const COMPACT: bool = false> {
     items: Vec<T>,
     seps: Vec<S>,
     span: Span,
 }
 
-impl<T: Parse, S: Parse> Spanned for Rep<T, S> {
+impl<T: Parse, S: Parse, const COMPACT: bool> Spanned for Rep<T, S, COMPACT> {
     fn span(&self) -> Span {
         self.span
     }
 }
 
-impl<T: Parse, S: Parse> ToTokens for Rep<T, S> {
+impl<T: Parse, S: Parse, const COMPACT: bool> ToTokens for Rep<T, S, COMPACT> {
     fn to_token_stream(&self) -> TokenStream {
         todo!()
     }
 }
 
-impl<T: Parse, S: Parse> Parse for Rep<T, S> {
+impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
     fn parse<'a, I: Default + Clone>(input: &mut Parser<'a, I>) -> ParseResult<Self> {
-        todo!()
+        let mut ret = Rep {
+            items: Vec::new(),
+            seps: Vec::new(),
+            span: input.span(),
+        };
+        loop {
+            if COMPACT {
+                todo!();
+            } else {
+                let item = input.parse::<T>()?;
+            }
+        }
+        Ok(ret)
     }
 }
 
