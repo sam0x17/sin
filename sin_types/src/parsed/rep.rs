@@ -27,6 +27,7 @@ impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
             span: input.span(),
         };
         loop {
+            println!("{:?}", input.peek());
             if input.peek().is_none() {
                 break;
             }
@@ -64,4 +65,17 @@ impl<T: Parse, S: Parse> Rep<T, S> {
         }
         ret
     }
+}
+
+#[test]
+fn test_parse_rep_path() {
+    let tokens: TokenStream = [
+        TokenTree::Leaf(t![#seg_1], Span::call_site()),
+        TokenTree::Leaf(t![::], Span::call_site()),
+        TokenTree::Leaf(t![#seg_2], Span::call_site()),
+        TokenTree::Leaf(t![::], Span::call_site()),
+        TokenTree::Leaf(t![#seg_3], Span::call_site()),
+    ][..]
+        .into();
+    let rep = parse::<Rep<Ident, punct::PathSep>>(tokens).unwrap();
 }
