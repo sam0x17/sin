@@ -42,6 +42,7 @@ impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
             }
             ret.seps.push(input.parse::<S>()?);
         }
+        ret.span = ret.span.join(input.span()).unwrap();
         Ok(ret)
     }
 }
