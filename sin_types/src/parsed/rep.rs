@@ -88,3 +88,24 @@ fn test_parse_rep_path() {
     assert_eq!(*first.1.unwrap(), punct::PathSep::default());
     assert_eq!(*first.0, "seg_1");
 }
+
+#[test]
+fn test_parse_rep_path_compact() {
+    let tokens: TokenStream = [
+        TokenTree::Leaf(t![#seg_1], Span::call_site()),
+        TokenTree::Leaf(t![::], Span::call_site()),
+        TokenTree::Leaf(t![#seg_2], Span::call_site()),
+        TokenTree::Leaf(t![::], Span::call_site()),
+        TokenTree::Leaf(t![struct], Span::call_site()),
+    ][..]
+        .into();
+    assert!(parse::<Rep<Ident, punct::PathSep, true>>(&tokens).is_err());
+    let (rep, remaining) = parse_compact::<Rep<Ident, punct::PathSep, true>>(&tokens).unwrap();
+    assert_eq!(rep.items.len(), 2);
+    assert_eq!(rep.seps.len(), 2);
+    assert_eq!(remaining.len(), 1);
+    let mut parser = tokens.to_parser();
+    let rep = parser.parse::<Rep<Ident, punct::PathSep, true>>().unwrap();
+    assert_eq!(rep.items.len(), 2);
+    assert_eq!(rep.seps.len(), 2);
+}

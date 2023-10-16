@@ -13,6 +13,10 @@ impl Spanned for TokenStream {
 }
 
 impl TokenStream {
+    pub fn len(&self) -> usize {
+        self.tokens.len()
+    }
+
     pub fn iter_with_state<T: Default + Clone>(&self) -> TSIterator<'_, T> {
         TSIterator {
             cursor: 0,

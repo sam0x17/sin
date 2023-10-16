@@ -169,6 +169,14 @@ pub trait Parse:
         input.parse::<Nothing>()?;
         Ok(parsed)
     }
+
+    fn parse_tokens_compact(tokens: impl Into<TokenStream>) -> ParseResult<(Self, TokenStream)> {
+        let tokens = tokens.into();
+        let mut input: Parser = tokens.to_parser();
+        let parsed = input.parse::<Self>()?;
+        let remaining: TokenStream = input.into_iter().collect();
+        Ok((parsed, remaining))
+    }
 }
 
 impl<P: Parse> From<P> for TokenStream {
@@ -183,4 +191,8 @@ pub trait ToTokens: Sized + Clone + core::fmt::Debug {
 
 pub fn parse<T: Parse>(tokens: impl Into<TokenStream>) -> ParseResult<T> {
     T::parse_tokens(tokens)
+}
+
+pub fn parse_compact<T: Parse>(tokens: impl Into<TokenStream>) -> ParseResult<(T, TokenStream)> {
+    T::parse_tokens_compact(tokens)
 }
