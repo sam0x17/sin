@@ -285,6 +285,12 @@ impl Span {
     ///
     /// Returns a [`JoinError`] if a legal join cannot be performed.
     pub fn join(&self, other: Span) -> Result<Span, JoinError> {
+        if self.is_call_site() {
+            return Ok(*self);
+        }
+        if other.is_call_site() {
+            return Ok(other);
+        }
         let a = self.to_fallback();
         let b = other.to_fallback();
         let SpanData::Fallback {
@@ -330,6 +336,14 @@ impl Span {
     pub fn is_fallback(&self) -> bool {
         let data: SpanData = *self.span_data();
         matches!(data, SpanData::Fallback { .. })
+    }
+
+    /// Returns `true` if this [`Span`] uses call-site resolution.
+    pub fn is_call_site(&self) -> bool {
+        match self.span_data() {
+            SpanData::ProcMacro(id) => *id == Span1::call_site().id(),
+            SpanData::Fallback { style, .. } => *style == SpanStyle::CallSite,
+        }
     }
 
     /// Converts this [`Span`] to use the fallback implementation rather than

@@ -27,7 +27,6 @@ impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
             span: input.span(),
         };
         loop {
-            println!("{:?}", input.peek());
             if input.peek().is_none() {
                 break;
             }
@@ -43,7 +42,7 @@ impl<T: Parse, S: Parse, const COMPACT: bool> Parse for Rep<T, S, COMPACT> {
             }
             ret.seps.push(input.parse::<S>()?);
         }
-        ret.span = ret.span.join(input.span()).unwrap();
+        ret.span = ret.span.join(input.span()).unwrap_or(Span::call_site());
         Ok(ret)
     }
 }
@@ -78,4 +77,14 @@ fn test_parse_rep_path() {
     ][..]
         .into();
     let rep = parse::<Rep<Ident, punct::PathSep>>(tokens).unwrap();
+    assert_eq!(rep.items.len(), 3);
+    assert_eq!(rep.seps.len(), 2);
+    assert_eq!(rep.punctuated().len(), 3);
+    let punctuated = rep.punctuated();
+    let last = punctuated.last().unwrap();
+    assert_eq!(*last.0, "seg_3");
+    assert!(last.1.is_none());
+    let first = punctuated.first().unwrap();
+    assert_eq!(*first.1.unwrap(), punct::PathSep::default());
+    assert_eq!(*first.0, "seg_1");
 }

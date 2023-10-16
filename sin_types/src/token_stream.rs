@@ -107,7 +107,7 @@ impl<'a, T: Default + Clone> Iterator for TSIterator<'a, T> {
 
 impl<'a, T: Default + Clone> Peekable<TokenTree> for TSIterator<'a, T> {
     fn peek_n(&self, n: isize) -> Option<TokenTree> {
-        let idx = self.cursor as isize + n;
+        let idx = self.cursor as isize + n - 1;
         if idx < 0 {
             return None;
         }
@@ -115,7 +115,7 @@ impl<'a, T: Default + Clone> Peekable<TokenTree> for TSIterator<'a, T> {
     }
 
     fn peek(&self) -> Option<TokenTree> {
-        self.tokens.get(self.cursor + 1).cloned()
+        self.tokens.get(self.cursor).cloned()
     }
 }
 
