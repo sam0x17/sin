@@ -157,7 +157,6 @@ pub enum JoinError {
     MissingSourceA,
     MissingSourceB,
     SourceMismatch,
-    OutOfOrder,
 }
 
 impl core::fmt::Display for JoinError {
@@ -172,9 +171,6 @@ impl core::fmt::Display for JoinError {
             Self::SourceMismatch => f.write_str(
                 "cannot join because these spans come from different source files/contexts",
             ),
-            Self::OutOfOrder => {
-                f.write_str("cannot join because the second span comes before the first span")
-            }
         }
     }
 }
@@ -313,7 +309,7 @@ impl Span {
         }
 
         if b_excerpt.start < a_excerpt.start {
-            return Err(JoinError::OutOfOrder);
+            return other.join(*self);
         }
 
         Ok(Span(
@@ -392,3 +388,41 @@ impl Default for Span {
         Span::call_site()
     }
 }
+
+impl FromIterator<TokenTree> for Span {
+    fn from_iter<T: IntoIterator<Item = TokenTree>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let Some(tt) = iter.next() else {
+            return Span::call_site();
+        };
+        let mut span = tt.span();
+        while let Some(tt) = iter.next() {
+            span = span.join(tt.span()).unwrap_or_default();
+        }
+        span
+    }
+}
+
+impl<'a> FromIterator<&'a TokenTree> for Span {
+    fn from_iter<T: IntoIterator<Item = &'a TokenTree>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let Some(tt) = iter.next() else {
+            return Span::call_site();
+        };
+        let mut span = tt.span();
+        while let Some(tt) = iter.next() {
+            span = span.join(tt.span()).unwrap_or_default();
+        }
+        span
+    }
+}
+
+// impl FromIterator<Token> for Span {
+//     fn from_iter<T: IntoIterator<Item = Token>>(iter: T) -> Self {
+//         let mut iter = iter.into_iter();
+//         let Some(token) = iter.next() else {
+//             return Span::call_site();
+//         };
+
+//     }
+// }
