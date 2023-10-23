@@ -389,6 +389,19 @@ impl Default for Span {
     }
 }
 
+impl FromIterator<Span> for Span {
+    fn from_iter<T: IntoIterator<Item = Span>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let Some(mut span) = iter.next() else {
+            return Span::call_site();
+        };
+        while let Some(span_b) = iter.next() {
+            span = span.join(span_b).unwrap_or_default();
+        }
+        span
+    }
+}
+
 impl FromIterator<TokenTree> for Span {
     fn from_iter<T: IntoIterator<Item = TokenTree>>(iter: T) -> Self {
         let mut iter = iter.into_iter();

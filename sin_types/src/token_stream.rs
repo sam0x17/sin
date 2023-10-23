@@ -75,10 +75,46 @@ impl From<&[TokenTree]> for TokenStream {
 impl FromIterator<TokenTree> for TokenStream {
     fn from_iter<T: IntoIterator<Item = TokenTree>>(iter: T) -> Self {
         let v: Vec<TokenTree> = iter.into_iter().collect();
-        let span = Span::new(InStr::from(
-            v.iter().map(|t| t.as_str()).collect::<String>(),
-        ));
+        let in_str = InStr::from(v.iter().map(|t| t.as_str()).collect::<Vec<_>>().join(" "));
+        let span = Span::new(in_str);
         TokenStream { tokens: v, span }
+    }
+}
+
+impl<'a> FromIterator<&'a TokenTree> for TokenStream {
+    fn from_iter<T: IntoIterator<Item = &'a TokenTree>>(iter: T) -> Self {
+        Self::from_iter(iter.into_iter().cloned())
+    }
+}
+
+impl FromIterator<Token> for TokenStream {
+    fn from_iter<T: IntoIterator<Item = Token>>(iter: T) -> Self {
+        let tokens: Vec<Token> = iter.into_iter().collect();
+        let in_str = InStr::from(
+            tokens
+                .iter()
+                .map(|t| t.as_str())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        let span = Span::new(in_str);
+        let mut cursor = 0;
+        let tokens = tokens
+            .into_iter()
+            .map(|token| {
+                let sub_span = Span::new_within(in_str, cursor..(cursor + token.as_str().len()));
+                cursor += token.as_str().len() + 1;
+                TokenTree::Leaf(token, sub_span)
+            })
+            .collect::<Vec<_>>();
+        // TODO: semicolon => semicolon + newline
+        TokenStream { tokens, span }
+    }
+}
+
+impl<'a> FromIterator<&'a Token> for TokenStream {
+    fn from_iter<T: IntoIterator<Item = &'a Token>>(iter: T) -> Self {
+        Self::from_iter(iter.into_iter().cloned())
     }
 }
 

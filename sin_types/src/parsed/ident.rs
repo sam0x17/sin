@@ -108,3 +108,35 @@ fn test_ident_parse_tokens() {
     let tokens: TokenStream = [TokenTree::Leaf(t![struct], Span::call_site())][..].into();
     assert!(parse::<Ident>(tokens).is_err());
 }
+
+#[test]
+fn test_iter_token_tree_collect() {
+    let tokens: TokenStream = [
+        TokenTree::Leaf(t![this], Span::new("this")),
+        TokenTree::Leaf(t![,], Span::new(",")),
+        TokenTree::Leaf(t![that], Span::new("that")),
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(tokens.len(), 3);
+}
+
+#[test]
+fn test_iter_token_collect() {
+    let tokens: TokenStream = [
+        t![hey],
+        t![,],
+        t![this],
+        t![,],
+        t![is],
+        t![a],
+        t![good],
+        t![idea],
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        tokens.span().source_text().unwrap(),
+        "hey , this , is a good idea"
+    );
+}
